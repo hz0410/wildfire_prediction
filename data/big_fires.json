@@ -1,0 +1,98 @@
+[
+ {
+  "name": "August Complex",
+  "year": 2020,
+  "state": "California",
+  "acres": 1032648,
+  "deaths": 0,
+  "structures_destroyed": 935,
+  "cost_usd": null,
+  "cause": "Lightning (38 separate ignitions merged into one complex)",
+  "blurb": "The first fire in modern California history to top 1 million acres -- a \"gigafire.\" Started from a mid-August lightning siege across six Northern California counties.",
+  "source": "https://en.wikipedia.org/wiki/August_Complex_fire"
+ },
+ {
+  "name": "Dixie Fire",
+  "year": 2021,
+  "state": "California",
+  "acres": 963309,
+  "deaths": 0,
+  "structures_destroyed": 1311,
+  "cost_usd": 637400000,
+  "cause": "Tree contacting a PG&E power line",
+  "blurb": "California's largest single-ignition-point fire on record, and the costliest to suppress in U.S. history. Nearly destroyed the town of Greenville.",
+  "source": "https://en.wikipedia.org/wiki/Dixie_Fire"
+ },
+ {
+  "name": "Camp Fire",
+  "year": 2018,
+  "state": "California",
+  "acres": 153336,
+  "deaths": 85,
+  "structures_destroyed": 18804,
+  "cost_usd": 16500000000,
+  "cause": "Failed PG&E transmission line hardware",
+  "blurb": "The deadliest and most destructive wildfire in California history. Nearly destroyed the town of Paradise in a matter of hours.",
+  "source": "https://en.wikipedia.org/wiki/Camp_Fire_(2018)"
+ },
+ {
+  "name": "Lahaina / Maui Fires",
+  "year": 2023,
+  "state": "Hawaii",
+  "acres": 2170,
+  "deaths": 102,
+  "structures_destroyed": 2200,
+  "cost_usd": null,
+  "cause": "Reenergized downed power line igniting dry grass",
+  "blurb": "Tiny by acreage but the deadliest U.S. wildfire in over a century, driven by hurricane-enhanced winds through the historic town of Lahaina -- a reminder that acres burned and human cost are not the same thing.",
+  "source": "https://en.wikipedia.org/wiki/2023_Hawaii_wildfires"
+ },
+ {
+  "name": "Marshall Fire",
+  "year": 2021,
+  "state": "Colorado",
+  "acres": 6080,
+  "deaths": 2,
+  "structures_destroyed": 1084,
+  "cost_usd": 2000000000,
+  "cause": "Smoldering embers + a sparking power line, in hurricane-force wind",
+  "blurb": "Colorado's most destructive fire ever, burning through suburban neighborhoods in winter -- proof that wildfire risk isn't confined to summer or to forested land.",
+  "source": "https://en.wikipedia.org/wiki/Marshall_Fire"
+ },
+ {
+  "name": "Wallow Fire",
+  "year": 2011,
+  "state": "Arizona",
+  "acres": 538049,
+  "deaths": 0,
+  "structures_destroyed": 72,
+  "cost_usd": null,
+  "cause": "Human-caused (abandoned campfire)",
+  "blurb": "Arizona's largest wildfire on record at the time, burning across the White Mountains.",
+  "source": "https://en.wikipedia.org/wiki/Wallow_Fire"
+ },
+ {
+  "name": "Rodeo-Chediski Fire",
+  "year": 2002,
+  "state": "Arizona",
+  "acres": 468638,
+  "deaths": 0,
+  "structures_destroyed": 491,
+  "cost_usd": null,
+  "cause": "Human-caused (signal fire + arson, two fires merged)",
+  "blurb": "The largest fire in Arizona history until Wallow surpassed it nine years later.",
+  "source": "https://en.wikipedia.org/wiki/Rodeo%E2%80%93Chediski_Fire"
+ },
+ {
+  "name": "Biscuit Fire",
+  "year": 2002,
+  "state": "Oregon",
+  "acres": 499965,
+  "deaths": 0,
+  "structures_destroyed": 0,
+  "cost_usd": null,
+  "cause": "Lightning",
+  "blurb": "Oregon's largest recorded wildfire, burning largely in remote Kalmiopsis wilderness.",
+  "source": "https://en.wikipedia.org/wiki/Biscuit_Fire"
+ }
+]

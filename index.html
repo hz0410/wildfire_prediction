@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PTA Wildfire Risk &mdash; From National Trend to Your Address</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <p class="eyebrow">MODIS + NIFC + PTA random-forest model &middot; 2026</p>
+    <h1>When a Spark Becomes a Wildfire</h1>
+    <p class="lede">
+      Every year tens of thousands of wildfires burn across the United States.
+      Most are small. Some destroy entire towns. This page walks from the
+      national trend down to a random-forest risk model for a single address
+      &mdash; built from real 2026 satellite detections, incident reports, and
+      weather data.
+    </p>
+    <a class="scroll-cue" href="#section-fires">Scroll to explore &darr;</a>
+  </div>
+</header>
+
+<main>
+
+  <!-- SECTION 1: fires per year -->
+  <section id="section-fires" class="story-section">
+    <div class="story-text">
+      <p class="kicker">01 &middot; The national picture</p>
+      <h2>How many wildfires happen every year?</h2>
+      <p>
+        Since 1983, the National Interagency Coordination Center has tracked
+        every wildfire reported by federal, state, and local agencies. The
+        count swings year to year with weather and drought &mdash; but it has
+        rarely dropped below 45,000 fires a year, and some years top 90,000.
+      </p>
+      <p id="fires-stat-callout" class="callout"></p>
+    </div>
+    <div class="story-chart">
+      <canvas id="chart-fires"></canvas>
+    </div>
+  </section>
+
+  <!-- SECTION 2: acres / damage per year -->
+  <section id="section-damage" class="story-section reverse">
+    <div class="story-text">
+      <p class="kicker">02 &middot; The damage</p>
+      <h2>Fewer fires don't mean less damage</h2>
+      <p>
+        The number of fires and the acreage they burn don't move together.
+        2023 had a below-average fire count but also the lowest acreage burned
+        in over a decade; 2020 and 2015 both burned over 10 million acres.
+        On average, roughly <strong id="human-caused-avg">&ndash;</strong>% of
+        wildfires each year are human-caused &mdash; debris burning, equipment,
+        campfires, arson, and fireworks &mdash; rather than lightning.
+      </p>
+      <p class="callout">Source: National Interagency Fire Center (NIFC), Situation Report statistics.</p>
+    </div>
+    <div class="story-chart">
+      <canvas id="chart-acres"></canvas>
+    </div>
+  </section>
+
+  <!-- SECTION 3: big fire case studies -->
+  <section id="section-cases" class="story-section-full">
+    <p class="kicker center">03 &middot; When it goes wrong</p>
+    <h2 class="center">A few fires that changed everything</h2>
+    <p class="center sub">Acreage isn't the only measure of a disaster. Some of the most destructive U.S. wildfires were small by area but catastrophic in human and economic cost.</p>
+    <div id="case-cards" class="case-grid"></div>
+  </section>
+
+  <!-- SECTION 4: interactive map -->
+  <section id="section-map" class="story-section-full map-section">
+    <p class="kicker center">04 &middot; Explore risk near you</p>
+    <h2 class="center">What's the wildfire risk at your address?</h2>
+    <p class="center sub">
+      Type a U.S. address and pick a date in 2026. For dates on or before
+      <strong id="cutoff-date-label">&ndash;</strong> we show what our data
+      actually recorded. For later dates, a random-forest model (trained on
+      this year's satellite detections, incident reports, and weather) predicts
+      the risk.
+    </p>
+
+    <div class="map-controls">
+      <input id="address-input" type="text" placeholder="e.g. 123 Main St, Paradise, CA (or lat, lon)" />
+      <input id="date-input" type="date" min="2026-01-01" max="2026-12-31" value="2026-07-04" />
+      <button id="lookup-btn">Check risk</button>
+    </div>
+    <p id="lookup-status" class="lookup-status"></p>
+
+    <div class="map-layout">
+      <div id="map" class="map-canvas"></div>
+      <div id="result-panel" class="result-panel">
+        <p class="result-placeholder">Search an address above to see the risk probability, likely causes, and prevention steps for the ~1km area around it.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 5: SHAP feature importance -->
+  <section id="section-shap" class="story-section-full">
+    <p class="kicker center">05 &middot; Inside the model</p>
+    <h2 class="center">What actually drives the risk score?</h2>
+    <p class="center sub">
+      We used SHAP-style Shapley-value attribution to ask, for the random forest's
+      predicted fire probability: how much did each input push the prediction up
+      or down, on average, across a held-out sample of days? Bars point right
+      (crimson) when a feature tends to push predicted risk <em>up</em>, and left
+      (green) when it tends to push risk <em>down</em>.
+    </p>
+    <div id="shap-cards" class="variable-explainer"></div>
+    <div class="chart-panel">
+      <h4>Mean |SHAP| value per feature (held-out sample)</h4>
+      <canvas id="chart-shap" style="max-height:420px"></canvas>
+    </div>
+    <p id="shap-note" class="callout" style="margin-top:1rem"></p>
+  </section>
+
+  <!-- SECTION 6: model performance -->
+  <section id="section-performance" class="story-section-full">
+    <p class="kicker center">06 &middot; How good is the model?</p>
+    <h2 class="center">Model performance, honestly</h2>
+    <p class="center sub">
+      Evaluated on a held-out slice of later 2026 dates the model never trained on
+      (a time-based split, not a random one, so it can't "peek" at the future).
+    </p>
+    <div id="kpi-cards" class="kpi-grid"></div>
+    <div class="chart-grid">
+      <div class="chart-panel">
+        <h4>ROC curve (fire-risk model)</h4>
+        <canvas id="chart-roc"></canvas>
+      </div>
+      <div class="chart-panel">
+        <h4>Calibration: predicted vs. observed rate</h4>
+        <canvas id="chart-calibration"></canvas>
+      </div>
+    </div>
+    <div class="chart-grid">
+      <div class="chart-panel">
+        <h4>Confusion matrix at 0.35 decision threshold</h4>
+        <table class="confusion-table" id="confusion-table"></table>
+      </div>
+      <div class="chart-panel">
+        <h4>Fire-scale model &mdash; accuracy by class</h4>
+        <table class="level-table" id="level-table"></table>
+      </div>
+    </div>
+    <div id="performance-takeaway" class="takeaway-box"></div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <p>
+    Built from the PTA wildfire-forecast notebook: NASA MODIS/FIRMS satellite
+    detections, InFORM/IRWIN incident reports, and daily weather, all for 2026.
+    National trend charts and case studies use public NIFC statistics and
+    public reporting (see per-section sources). This is a research/demo tool,
+    not an official fire warning system &mdash; for active incidents and
+    evacuation orders always check
+    <a href="https://www.fire.ca.gov/incidents" target="_blank" rel="noopener">CAL FIRE</a>,
+    <a href="https://inciweb.wildfire.gov/" target="_blank" rel="noopener">InciWeb</a>,
+    or your local emergency services.
+  </p>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="js/forest.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
