@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import sys; print\\(sys.version\\)\")",
+      "Bash(python3 -c \"import sklearn; import xarray; import anthropic; print\\('all ok'\\)\")",
+      "Bash(python3 -c \"import sklearn; import xarray; import gcsfs; print\\('sklearn+xarray+gcsfs ok'\\)\")",
+      "Bash(python3 -c \"import pandas; import numpy; import matplotlib; import seaborn; print\\('viz ok'\\)\")",
+      "Bash(pip show *)",
+      "Bash(curl -sI \"https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js\")",
+      "Bash(curl -sI \"https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.js\")",
+      "Bash(curl -sI \"https://cdnjs.cloudflare.com/ajax/libs/chart.js/4.4.4/chart.umd.min.js\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js\")"
+    ]
+  }
+}
