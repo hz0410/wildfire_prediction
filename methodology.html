@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Methodology &mdash; PTA Wildfire Risk v2</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<nav class="top-pages-nav">
+  <a href="index.html">Prediction model</a>
+  <a href="methodology.html" class="active">Methodology</a>
+</nav>
+
+<nav class="section-nav" id="section-nav"></nav>
+
+<header class="hero" style="min-height:48vh">
+  <div class="hero-inner">
+    <p class="eyebrow">Real project results &middot; hist-gradient-boosting model</p>
+    <h1 style="font-size:clamp(2rem, 4.5vw, 3.4rem)">What did the notebook actually do?</h1>
+    <p class="lede">
+      This page walks through the real training notebook end to end: what the
+      model is trying to predict, what data it sees, which candidate models
+      were compared, how well the winner performed, and an honest read of
+      what its results do and don't tell you.
+    </p>
+    <a class="scroll-cue" href="#section-target">Scroll to explore &darr;</a>
+  </div>
+</header>
+
+<main>
+
+  <!-- 01: target + data + sampling -->
+  <section id="section-target" class="story-section-full reveal">
+    <p class="kicker center">01 &middot; What the model predicts</p>
+    <h2 class="center">The target, precisely</h2>
+    <p class="center sub">
+      Every modeling choice below follows from one deliberately narrow
+      definition of "risk." Getting this exact wording right matters more
+      than any metric on this page.
+    </p>
+    <div class="takeaway-box">
+      <h4>Target definition (quoted from the notebook)</h4>
+      <p style="margin:0 0 0.8rem">
+        The label is a new MODIS vegetation-fire hotspot candidate on the next
+        day, in a given 0.25&deg;&times;0.25&deg; grid cell (roughly 17
+        miles/28&nbsp;km across), after that cell has gone more than three
+        consecutive days without a detection. <b>It is not a guaranteed
+        wildfire, a property-level risk, a fire-spread prediction, or an
+        emergency warning</b> &mdash; it is a same-day satellite-detectability
+        signal, one step ahead.
+      </p>
+      <ul style="margin:0">
+        <li><b>Geography:</b> continental United States (bounded by GridMET's own coverage)</li>
+        <li><b>Resolution:</b> 0.25&deg; grid cells, 1-day-ahead horizon</li>
+        <li><b>Training window:</b> 2020&ndash;2023, calibrated on 2024, tested on 2025&ndash;2026</li>
+      </ul>
+    </div>
+
+    <h3 style="text-align:center;margin-top:2.4rem">Why case-control sampling</h3>
+    <p class="center sub" style="max-width:760px">
+      New ignitions after a quiet spell are rare &mdash; well under 1% of all
+      grid-cell-days. Training directly on that raw imbalance wastes most of
+      a training pass on cells that never come close to igniting. The
+      notebook instead builds a <b>case-control sample</b>: it keeps every
+      positive (actual ignition) day and draws a much smaller, weighted
+      sample of negative (quiet) days, then restores the true population
+      rate at evaluation time with a <code>sampling_weight</code> column.
+      The sampled training data shows roughly <b>17.3%</b> positives, but the
+      weights correctly imply a true nationwide prevalence of only about
+      <b>0.6&ndash;0.7%</b> &mdash; every held-out metric on this page is
+      computed on that reweighted, population-correct basis, not the raw
+      sampled rate.
+    </p>
+  </section>
+
+  <!-- 02: features -->
+  <section id="section-features" class="story-section-full reveal">
+    <p class="kicker center">02 &middot; Features</p>
+    <h2 class="center">25 features, five families</h2>
+    <p class="center sub">
+      The model never sees a satellite image directly &mdash; it sees a row
+      of 25 numbers per grid-cell-day, grouped here by what they describe.
+    </p>
+    <div class="variable-explainer">
+      <div class="variable-explainer-card">
+        <span class="ve-icon">&#127786;</span>
+        <strong>Fire weather (8)</strong>
+        <p><code>tmmx</code>/<code>tmmn</code> (max/min temperature), <code>pr</code> (precipitation), <code>vs</code> (wind speed), <code>rmin</code> (minimum humidity), <code>vpd</code> (vapor pressure deficit), <code>erc</code> (energy release component &mdash; a standard fire-danger index), <code>fm100</code> (100-hour dead fuel moisture). All from GridMET.</p>
+      </div>
+      <div class="variable-explainer-card">
+        <span class="ve-icon">&#128197;</span>
+        <strong>Season (3)</strong>
+        <p><code>month</code>, plus <code>sin_doy</code>/<code>cos_doy</code> &mdash; day-of-year encoded on a circle so December 31st and January 1st read as neighbors, not as opposite ends of a number line.</p>
+      </div>
+      <div class="variable-explainer-card">
+        <span class="ve-icon">&#128293;</span>
+        <strong>Recent fire history (8)</strong>
+        <p>Fire count and fire radiative power (<code>frp</code>), each looking back <code>1</code>, <code>3</code>, <code>7</code>, and <code>14</code> days &mdash; whether this cell (or its recent past) has been actively burning nearby.</p>
+      </div>
+      <div class="variable-explainer-card">
+        <span class="ve-icon">&#127961;</span>
+        <strong>Human activity (4)</strong>
+        <p><code>population_per_sq_km</code>, <code>log_population_density</code>, <code>primary_road_km_per_100_sq_km</code>, <code>distance_to_fire_station_km</code> &mdash; people, roads, and emergency response reach.</p>
+      </div>
+      <div class="variable-explainer-card">
+        <span class="ve-icon">&#128205;</span>
+        <strong>Location (2)</strong>
+        <p><code>lat</code>, <code>lon</code> &mdash; where the cell is. Deliberately tested in isolation below, since location alone can quietly encode "this is just a fire-prone place" without any real signal.</p>
+      </div>
+    </div>
+
+    <h3 style="text-align:center;margin-top:2rem">How the model was validated</h3>
+    <p class="center sub" style="max-width:760px">
+      Rather than a random row-by-row split &mdash; which would let the model
+      "cheat" by seeing a cell's neighbors in training &mdash; each grid cell
+      is assigned to a spatial block using a SHA-256 hash of its coordinates
+      (<code>stable_spatial_holdout</code>), then whole blocks, not
+      individual rows, are held out. Combined with a calendar-year split,
+      this produces three genuinely independent evaluation sets:
+    </p>
+    <table class="ablation-table" id="split-summary-table"></table>
+  </section>
+
+  <!-- 03: models compared -->
+  <section id="section-models" class="story-section-full reveal">
+    <p class="kicker center">03 &middot; Models compared</p>
+    <h2 class="center">18 candidates, one winner</h2>
+    <p class="center sub" style="max-width:760px">
+      The notebook trains three model families &mdash; a gradient-boosted
+      tree ensemble (<code>hist_gradient_boosting</code>), extremely
+      randomized trees (<code>extra_trees</code>), and a random forest
+      (<code>random_forest</code>) &mdash; against each of the three feature
+      strategies (<code>full</code>, <code>no_coordinates</code>,
+      <code>conditions_only</code>), each calibrated two ways (Platt/sigmoid
+      and isotonic regression), for 18 total candidates. Every candidate is
+      ranked by <b>PR AUC</b> (precision-recall area under the curve) on the
+      calibration split &mdash; the right metric here, since ROC AUC is easy
+      to inflate when positives are this rare.
+    </p>
+    <table class="ablation-table" id="candidate-table"></table>
+    <p class="callout" style="margin-top:1rem">
+      The winner &mdash; <b>hist_gradient_boosting</b>, full feature set,
+      sigmoid calibration &mdash; is only marginally ahead of the next few
+      candidates. What matters more than the exact ranking is that gradient
+      boosting on the full feature set beats every coordinate-restricted or
+      alternative-algorithm candidate, consistently, across both calibration
+      methods.
+    </p>
+  </section>
+
+  <!-- 04: results -->
+  <section id="section-results" class="story-section-full reveal">
+    <p class="kicker center">04 &middot; Results</p>
+    <h2 class="center">How well does the winning model actually do?</h2>
+    <span class="data-tag real center" style="display:block;width:fit-content;margin:0 auto 0.8rem">Real project results</span>
+    <p class="center sub" id="model-card-summary"></p>
+
+    <div id="kpi-cards" class="kpi-grid"></div>
+
+    <h3 style="text-align:center;margin-top:2rem">Every metric, on every held-out split</h3>
+    <p class="center sub" style="max-width:760px">
+      Performance degrades gracefully from the easiest split (calibration,
+      same years and places seen in spirit during training) to the hardest
+      (spatial_test, both a later year <i>and</i> spatial blocks never seen
+      in training) &mdash; the honest signature of a model that isn't
+      overfitting to one place or one season.
+    </p>
+    <table class="ablation-table" id="split-metrics-table"></table>
+
+    <h3 style="text-align:center;margin-top:2rem">Two ways to operate the model</h3>
+    <p class="center sub" style="max-width:760px">
+      A calibrated probability isn't a decision by itself &mdash; it needs a
+      threshold. The notebook reports two named operating points: chase
+      <b>80% recall</b> (catch most real ignitions, accept a larger watchlist),
+      or work within a fixed <b>5% alert budget</b> (only ever flag the
+      riskiest 5% of cell-days, whatever recall that buys you).
+    </p>
+    <table class="ablation-table" id="threshold-table"></table>
+  </section>
+
+  <!-- 05: explainability -->
+  <section id="section-explainability" class="story-section-full reveal">
+    <p class="kicker center">05 &middot; Feature importance & explainability</p>
+    <h2 class="center">What is the model actually using?</h2>
+    <p class="center sub" style="max-width:760px">
+      Two independent methods &mdash; permutation importance (how much
+      shuffling one column hurts held-out PR AUC) and SHAP (how much each
+      feature pushes an individual prediction up or down) &mdash; are cross-
+      checked against each other, plus a direct ablation test of location
+      alone.
+    </p>
+
+    <div class="model-gallery">
+      <figure>
+        <img src="assets/model/improved_calibration.png" alt="Calibration curve" />
+        <figcaption>Predicted probability vs. observed frequency, held-out data (real notebook output)</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/model/improved_feature_importance.png" alt="Permutation feature importance" />
+        <figcaption>Permutation feature importance, real trained model</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/model/shap_global_bar.png" alt="SHAP global importance" />
+        <figcaption>Mean |SHAP value| per feature, real held-out sample</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/model/shap_beeswarm.png" alt="SHAP beeswarm" />
+        <figcaption>SHAP value distribution per feature (direction + magnitude)</figcaption>
+      </figure>
+    </div>
+
+    <div class="chart-grid">
+      <div class="chart-panel">
+        <h4>Top 10 by permutation importance</h4>
+        <table class="ablation-table" id="perm-importance-table"></table>
+      </div>
+      <div class="chart-panel">
+        <h4>Top 10 by mean |SHAP value|</h4>
+        <table class="ablation-table" id="shap-importance-table"></table>
+      </div>
+    </div>
+
+    <h3 style="text-align:center;margin-top:2rem">Does location alone explain the model?</h3>
+    <p class="center sub">A coordinate-ablation test: how much predictive power comes from lat/lon vs. actual fire-weather and activity signals.</p>
+    <table class="ablation-table" id="ablation-table"></table>
+    <p class="callout" id="ablation-callout" style="margin-top:1rem"></p>
+  </section>
+
+  <!-- 06: uncertainty + risk bands -->
+  <section id="section-uncertainty" class="story-section-full reveal">
+    <p class="kicker center">06 &middot; Uncertainty & risk bands</p>
+    <h2 class="center">Held-out performance, with uncertainty</h2>
+    <p class="center sub">Bootstrap 95% confidence intervals from resampling whole calendar dates, not individual rows &mdash; a stricter, more honest uncertainty estimate, computed on the temporal_test split.</p>
+    <div class="kpi-grid" id="bootstrap-cards"></div>
+
+    <h3 style="text-align:center;margin-top:2rem">From probability to risk band</h3>
+    <p class="center sub" style="max-width:760px">
+      The calibrated probability is finally binned into five discrete risk
+      bands using quantiles of the 2024 calibration-year probability
+      distribution &mdash; the same bands used for the address-lookup map on
+      the prediction-model page.
+    </p>
+    <table class="ablation-table" id="risk-band-table"></table>
+  </section>
+
+  <!-- 07: limitations -->
+  <section id="section-limitations" class="story-section-full reveal">
+    <p class="kicker center">07 &middot; Limitations & next steps</p>
+    <h2 class="center">What this model doesn't tell you</h2>
+    <div class="limitations-box" id="limitations-box"></div>
+    <div class="limitations-box" id="next-steps-box" style="margin-top:1.2rem"></div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <p>
+    Built from the PTA wildfire-forecast project: NASA MODIS/FIRMS satellite
+    detections (2020&ndash;2026), GridMET fire-weather variables, human
+    activity data (population, roads, fire-station distance), and NIFC annual
+    statistics. Go back to the <a href="index.html">prediction model page</a>
+    to see the national storyline, the state-by-state map, and the live
+    address-lookup tool. This is a research/demo tool, not an official fire
+    warning system &mdash; for active incidents and evacuation orders always
+    check
+    <a href="https://www.fire.ca.gov/incidents" target="_blank" rel="noopener">CAL FIRE</a>,
+    <a href="https://inciweb.wildfire.gov/" target="_blank" rel="noopener">InciWeb</a>,
+    or your local emergency services.
+  </p>
+</footer>
+
+<script src="js/app.js"></script>
+<script>
+mainMethodology().catch((e) => {
+  console.error(e);
+  document.body.insertAdjacentHTML('afterbegin',
+    `<div style="background:#e63946;color:#fff;padding:1rem;text-align:center">Failed to load model analysis data: ${e.message}</div>`);
+});
+</script>
+</body>
+</html>

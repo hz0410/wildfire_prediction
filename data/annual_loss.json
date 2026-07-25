@@ -1,0 +1,83 @@
+{
+  "unit": "USD millions",
+  "methodology_note": "2020-2024 figures are NOAA NCEI's official 'Billion-Dollar Weather and Climate Disasters' totals (CPI-adjusted to 2024 dollars) for the single costliest qualifying wildfire event(s) of that year -- the same U.S. government dataset used for hurricanes, floods, etc. NOAA discontinued ongoing updates to this product after the 2024 edition, so 2025 and 2026 have no equivalent official figure; those years use third-party estimates flagged below, and are not directly comparable in methodology.",
+  "annual": [
+    {
+      "year": 2020,
+      "cost_cpi_adjusted": 19904.5,
+      "cost_unadjusted": 16450,
+      "deaths": 46,
+      "event_name": "Western Wildfires – California, Oregon, Washington Firestorms (Fall 2020)",
+      "source": "NOAA NCEI Billion-Dollar Weather and Climate Disasters",
+      "source_url": "https://www.ncei.noaa.gov/access/billions/",
+      "estimate_type": "official_noaa",
+      "note": null
+    },
+    {
+      "year": 2021,
+      "cost_cpi_adjusted": 12064,
+      "cost_unadjusted": 10400,
+      "deaths": 8,
+      "event_name": "Western Wildfires (2021)",
+      "source": "NOAA NCEI Billion-Dollar Weather and Climate Disasters",
+      "source_url": "https://www.ncei.noaa.gov/access/billions/",
+      "estimate_type": "official_noaa",
+      "note": null
+    },
+    {
+      "year": 2022,
+      "cost_cpi_adjusted": 3327.9,
+      "cost_unadjusted": 3110,
+      "deaths": 17,
+      "event_name": "Western Wildfires (Spring-Fall 2022)",
+      "source": "NOAA NCEI Billion-Dollar Weather and Climate Disasters",
+      "source_url": "https://www.ncei.noaa.gov/access/billions/",
+      "estimate_type": "official_noaa",
+      "note": null
+    },
+    {
+      "year": 2023,
+      "cost_cpi_adjusted": 5665,
+      "cost_unadjusted": 5500,
+      "deaths": 100,
+      "event_name": "Hawaii Firestorm / Lahaina, Maui (August 2023)",
+      "source": "NOAA NCEI Billion-Dollar Weather and Climate Disasters",
+      "source_url": "https://www.ncei.noaa.gov/access/billions/",
+      "estimate_type": "official_noaa",
+      "note": "The only wildfire event NOAA tallied above the $1B threshold in 2023, despite a below-average mainland acreage year overall."
+    },
+    {
+      "year": 2024,
+      "cost_cpi_adjusted": 1780,
+      "cost_unadjusted": 1780,
+      "deaths": 2,
+      "event_name": "New Mexico Wildfires (June 2024)",
+      "source": "NOAA NCEI Billion-Dollar Weather and Climate Disasters",
+      "source_url": "https://www.ncei.noaa.gov/access/billions/",
+      "estimate_type": "official_noaa",
+      "note": "The only wildfire event NOAA tallied above the $1B threshold in 2024, even though 2024 burned ~8.9M acres nationally (the most since 2020) -- most of that acreage was in lower-value rural/rangeland, illustrating that acres burned and dollar loss are not the same thing."
+    },
+    {
+      "year": 2025,
+      "cost_low": 250000,
+      "cost_high": 275000,
+      "deaths": 30,
+      "event_name": "Palisades & Eaton Fires, Los Angeles (January 2025)",
+      "source": "AccuWeather preliminary total damage & economic loss estimate",
+      "source_url": "https://www.accuweather.com/en/weather-news/accuweather-estimates-more-than-250-billion-in-damages-and-economic-loss-from-la-wildfires/1733821",
+      "estimate_type": "third_party_estimate",
+      "note": "NOAA's official tracker was discontinued before 2025, so no directly comparable government figure exists. Estimates for this single event vary enormously by scope: insured-loss-only estimates run $28-40B (Verisk, Swiss Re), while broader total-damage-and-economic-loss estimates (property, business interruption, indirect costs) reach $250-275B (AccuWeather) or as high as $95-164B in UCLA Anderson Forecast's property/capital-loss-only framing. Even the lowest of these estimates exceeds every other year in this chart."
+    },
+    {
+      "year": 2026,
+      "cost_low": 377,
+      "cost_high": null,
+      "deaths": null,
+      "event_name": "2026 season-to-date (partial year, through ~July 24, 2026)",
+      "source": "State fire agency suppression-cost reports (Colorado, Oregon, Utah)",
+      "source_url": "https://coloradosun.com/2026/07/24/colorado-wildfire-quarter-billion-dollars-early-estimate/",
+      "estimate_type": "partial_year_suppression_cost_only",
+      "note": "No single billion-dollar wildfire event has been tallied yet in 2026. This figure is suppression cost only (not total economic/property damage) from three states with early public figures: Colorado ~$266M (90-day projection, 4 largest fires), Oregon ~$90.9M (large-fire suppression through July 21), Utah ~$20M (through July 1) -- it excludes every other state and all non-suppression losses, and peak fire season (Aug-Oct) has not happened yet. Nationally, 2026 is running at 130% of the 10-year average number of fires and 146% of the 10-year average acres burned, so this floor is likely to rise substantially."
+    }
+  ]
+}

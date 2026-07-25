@@ -19,53 +19,8 @@ function fmtUSD(n) {
   if (n >= 1e6) return '$' + (n / 1e6).toFixed(0) + 'M';
   return '$' + fmtNum(n);
 }
-
-// ---------------------------------------------------------------------------
-// Section 1 + 2: national storyline charts
-// ---------------------------------------------------------------------------
-function renderStoryCharts(annual) {
-  const years = annual.annual.map((d) => d.year);
-  const fires = annual.annual.map((d) => d.fires);
-  const acres = annual.annual.map((d) => d.acres);
-  const humanPct = annual.annual.map((d) => d.human_caused_pct);
-
-  const peakFireYear = annual.annual.reduce((a, b) => (b.fires > a.fires ? b : a));
-  const peakAcreYear = annual.annual.reduce((a, b) => (b.acres > a.acres ? b : a));
-  document.getElementById('fires-stat-callout').textContent =
-    `Peak year: ${peakFireYear.year} with ${fmtNum(peakFireYear.fires)} fires. ` +
-    `Most acres burned in a single year: ${peakAcreYear.year}, ${fmtAcres(peakAcreYear.acres)}.`;
-
-  const humanValues = humanPct.filter((v) => v !== null && v !== undefined);
-  const avgHuman = humanValues.reduce((a, b) => a + b, 0) / humanValues.length;
-  document.getElementById('human-caused-avg').textContent = avgHuman.toFixed(0);
-
-  new Chart(document.getElementById('chart-fires'), {
-    type: 'bar',
-    data: {
-      labels: years,
-      datasets: [{
-        label: 'Wildfires reported',
-        data: fires,
-        backgroundColor: '#ff6b35',
-        borderRadius: 2,
-      }],
-    },
-    options: chartOptions('Fires per year (1983–2025)'),
-  });
-
-  new Chart(document.getElementById('chart-acres'), {
-    type: 'bar',
-    data: {
-      labels: years,
-      datasets: [{
-        label: 'Acres burned',
-        data: acres,
-        backgroundColor: '#ffb703',
-        borderRadius: 2,
-      }],
-    },
-    options: chartOptions('Acres burned per year (1983–2025)'),
-  });
+function fmtPct(x, digits) {
+  return (x * 100).toFixed(digits === undefined ? 1 : digits) + '%';
 }
 
 function chartOptions(title) {
@@ -74,17 +29,279 @@ function chartOptions(title) {
     maintainAspectRatio: false,
     plugins: {
       legend: { display: false },
-      title: { display: true, text: title, color: '#f2ede6', font: { size: 13 } },
+      title: { display: true, text: title, color: '#1f2937', font: { size: 13 } },
     },
     scales: {
-      x: { ticks: { color: '#b9b3aa', maxTicksLimit: 12 }, grid: { color: '#262b2f' } },
-      y: { ticks: { color: '#b9b3aa' }, grid: { color: '#262b2f' } },
+      x: { ticks: { color: '#4b5563', maxTicksLimit: 12 }, grid: { color: '#eee' } },
+      y: { ticks: { color: '#4b5563' }, grid: { color: '#eee' } },
     },
   };
 }
 
 // ---------------------------------------------------------------------------
-// Section 3: big fire case studies
+// Section 0: the cost of fire (real economic-loss data, 2020-2026)
+// ---------------------------------------------------------------------------
+function fmtUSDmillions(m) {
+  if (m >= 1000) return '$' + (m / 1000).toFixed(m >= 10000 ? 0 : 1) + 'B';
+  return '$' + fmtNum(m) + 'M';
+}
+
+function renderLossSection(lossData, annual) {
+  const rows = lossData.annual;
+  const pointValue = (r) => {
+    if (r.cost_cpi_adjusted !== undefined) return r.cost_cpi_adjusted;
+    if (r.cost_high !== null && r.cost_high !== undefined) return (r.cost_low + r.cost_high) / 2;
+    return r.cost_low;
+  };
+  const colorFor = (r) => (
+    r.estimate_type === 'official_noaa' ? '#c0392b'
+      : r.estimate_type === 'third_party_estimate' ? '#7a1a12'
+      : '#94a3b8'
+  );
+
+  new Chart(document.getElementById('chart-loss'), {
+    type: 'bar',
+    data: {
+      labels: rows.map((r) => r.year),
+      datasets: [{
+        label: 'Estimated wildfire cost ($M)',
+        data: rows.map(pointValue),
+        backgroundColor: rows.map(colorFor),
+        borderRadius: 3,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const r = rows[ctx.dataIndex];
+              const range = (r.cost_high !== null && r.cost_high !== undefined && r.cost_high !== r.cost_low)
+                ? ` (range ${fmtUSDmillions(r.cost_low)}–${fmtUSDmillions(r.cost_high)})` : '';
+              return [`${fmtUSDmillions(pointValue(r))}${range}`, r.event_name, r.estimate_type.replace(/_/g, ' ')];
+            },
+          },
+        },
+      },
+      scales: {
+        x: { ticks: { color: '#4b5563' }, grid: { color: '#eee' } },
+        y: {
+          type: 'logarithmic',
+          ticks: { color: '#4b5563', callback: (v) => fmtUSDmillions(v) },
+          grid: { color: '#eee' },
+          title: { display: true, text: 'Estimated cost (log scale)', color: '#4b5563' },
+        },
+      },
+    },
+  });
+
+  // acres burned vs. dollar loss, for years present in both real datasets (2020-2025;
+  // 2026 is a partial year and excluded here since full-year acreage isn't final yet)
+  const acresByYear = {};
+  annual.annual.forEach((a) => { acresByYear[a.year] = a.acres; });
+  const overlapRows = rows.filter((r) => acresByYear[r.year] !== undefined);
+
+  new Chart(document.getElementById('chart-loss-vs-acres'), {
+    data: {
+      labels: overlapRows.map((r) => r.year),
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Acres burned',
+          data: overlapRows.map((r) => acresByYear[r.year]),
+          backgroundColor: 'rgba(224,168,0,0.28)',
+          borderColor: 'rgba(224,168,0,0.9)',
+          borderWidth: 1,
+          yAxisID: 'yAcres',
+          borderRadius: 3,
+          order: 2,
+        },
+        {
+          type: 'line',
+          label: 'Estimated dollar loss',
+          data: overlapRows.map(pointValue),
+          borderColor: '#c0392b',
+          backgroundColor: '#c0392b',
+          pointBackgroundColor: '#c0392b',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointRadius: 6,
+          pointHoverRadius: 8,
+          borderWidth: 3,
+          yAxisID: 'yCost',
+          tension: 0.2,
+          order: 1,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#4b5563' } } },
+      elements: { line: { fill: false } },
+      scales: {
+        x: { ticks: { color: '#4b5563' }, grid: { display: false } },
+        yAcres: {
+          position: 'left',
+          ticks: { color: '#4b5563', callback: (v) => (v / 1e6).toFixed(0) + 'M' },
+          title: { display: true, text: 'Acres burned', color: '#4b5563' },
+          grid: { color: '#eee' },
+        },
+        yCost: {
+          position: 'right',
+          type: 'logarithmic',
+          ticks: { color: '#4b5563', callback: (v) => fmtUSDmillions(v) },
+          title: { display: true, text: 'Estimated cost (log scale)', color: '#4b5563' },
+          grid: { display: false },
+        },
+      },
+    },
+  });
+
+  const y2020_24 = rows.filter((r) => r.estimate_type === 'official_noaa');
+  const total2020_24 = y2020_24.reduce((s, r) => s + r.cost_cpi_adjusted, 0);
+  const y2025 = rows.find((r) => r.year === 2025);
+  const y2024 = rows.find((r) => r.year === 2024);
+  const acres2024 = acresByYear[2024];
+
+  document.getElementById('loss-analysis').innerHTML = `
+    <h4>How to read this</h4>
+    <ul>
+      <li>From 2020 through 2024, NOAA's official disaster-cost tracker put the total cost of the single costliest qualifying U.S. wildfire event each year at <strong>${fmtUSDmillions(total2020_24)} combined</strong> across all five years &mdash; and then <strong>January 2025 alone</strong> (the Palisades and Eaton fires in Los Angeles) is estimated at <strong>${fmtUSDmillions(y2025.cost_low)}&ndash;${fmtUSDmillions(y2025.cost_high)}</strong>, by far the costliest wildfire event on record, larger than the previous five years combined even at the low end of the range.</li>
+      <li>Dollar loss and acres burned genuinely diverge: ${y2024.year} burned about <strong>${(acres2024 / 1e6).toFixed(1)} million acres</strong> nationally (the most since 2020) but NOAA only tallied a single qualifying billion-dollar wildfire event that year, worth <strong>${fmtUSDmillions(y2024.cost_cpi_adjusted)}</strong> &mdash; because most of that acreage burned in lower-value rural and rangeland, not populated areas. The 2025 Los Angeles fires burned a tiny fraction of the acreage of a typical bad wildfire year, yet caused vastly more damage, because they hit dense urban-wildland interface.</li>
+      <li>Estimates for the same event can vary by an order of magnitude depending on what's counted: insured-loss-only figures for the 2025 LA fires run $28&ndash;40B, while broader total-damage-and-economic-loss estimates (property, business interruption, indirect costs) reach $250&ndash;275B. Always check what a wildfire "cost" figure is actually measuring before comparing it to another one.</li>
+      <li>NOAA discontinued ongoing updates to its Billion-Dollar Disasters tracker after the 2024 edition, so 2025 and 2026 rely on third-party or state-level estimates rather than one consistent government methodology &mdash; a real gap in the public data available for a project like this one.</li>
+      <li>2026 is a partial year (through late July): nationally 130% of the 10-year average number of fires and 146% of the 10-year average acres burned so far, but no single event has crossed the billion-dollar threshold yet and peak fire season (August&ndash;October) hasn't happened. The suppression-cost figures shown here are a floor, not a final total.</li>
+    </ul>
+  `;
+}
+
+// ---------------------------------------------------------------------------
+// Section 1 + 2: national storyline charts
+// ---------------------------------------------------------------------------
+function renderStoryCharts(annual) {
+  const peakFireYear = annual.annual.reduce((a, b) => (b.fires > a.fires ? b : a));
+  const peakAcreYear = annual.annual.reduce((a, b) => (b.acres > a.acres ? b : a));
+  document.getElementById('fires-stat-callout').textContent =
+    `Peak year: ${peakFireYear.year} with ${fmtNum(peakFireYear.fires)} fires. ` +
+    `Most acres burned in a single year: ${peakAcreYear.year}, ${fmtAcres(peakAcreYear.acres)}.`;
+}
+
+// ---------------------------------------------------------------------------
+// Section 1 (map): fires reported per state, by year (choropleth)
+//
+// Uses Plotly's built-in USA-states choropleth trace, which has state
+// boundary geometry built into the plotly.js library itself -- no separate
+// map-outline file needs to be fetched from a CDN at runtime, which is more
+// robust than loading external topojson/geojson over the network.
+// ---------------------------------------------------------------------------
+const STATE_NAME_TO_ABBR = {
+  Alabama: 'AL', Alaska: 'AK', Arizona: 'AZ', Arkansas: 'AR', California: 'CA',
+  Colorado: 'CO', Connecticut: 'CT', Delaware: 'DE', Florida: 'FL', Georgia: 'GA',
+  Hawaii: 'HI', Idaho: 'ID', Illinois: 'IL', Indiana: 'IN', Iowa: 'IA',
+  Kansas: 'KS', Kentucky: 'KY', Louisiana: 'LA', Maine: 'ME', Maryland: 'MD',
+  Massachusetts: 'MA', Michigan: 'MI', Minnesota: 'MN', Mississippi: 'MS', Missouri: 'MO',
+  Montana: 'MT', Nebraska: 'NE', Nevada: 'NV', 'New Hampshire': 'NH', 'New Jersey': 'NJ',
+  'New Mexico': 'NM', 'New York': 'NY', 'North Carolina': 'NC', 'North Dakota': 'ND', Ohio: 'OH',
+  Oklahoma: 'OK', Oregon: 'OR', Pennsylvania: 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC',
+  'South Dakota': 'SD', Tennessee: 'TN', Texas: 'TX', Utah: 'UT', Vermont: 'VT',
+  Virginia: 'VA', Washington: 'WA', 'West Virginia': 'WV', Wisconsin: 'WI', Wyoming: 'WY',
+};
+
+function renderStateMap(firesByState) {
+  const years = firesByState.years;
+  const metricLabels = {
+    reported_fires_nifc: 'wildfires reported (NIFC)',
+    satellite_detections_firms: 'satellite fire detections (FIRMS, partial year)',
+  };
+  const stateNames = Object.keys(firesByState.states);
+
+  // fixed color domain across all years, so shading is comparable when you
+  // switch years rather than auto-rescaling each time
+  let globalMax = 0;
+  years.forEach((y) => {
+    stateNames.forEach((name) => {
+      globalMax = Math.max(globalMax, firesByState.states[name][String(y)] || 0);
+    });
+  });
+
+  const plotDiv = document.getElementById('state-map');
+  let selectedYear = 2025;
+
+  function traceFor(year) {
+    const metric = firesByState.metric_by_year[String(year)];
+    const label = metric === 'satellite_detections_firms' ? 'satellite detections' : 'fires reported';
+    return [{
+      type: 'choropleth',
+      locationmode: 'USA-states',
+      locations: stateNames.map((name) => STATE_NAME_TO_ABBR[name]),
+      z: stateNames.map((name) => firesByState.states[name][String(year)] || 0),
+      text: stateNames.map((name) => `${name}: ${fmtNum(firesByState.states[name][String(year)] || 0)} ${label}`),
+      hoverinfo: 'text',
+      zmin: 0,
+      zmax: globalMax,
+      colorscale: [[0, '#fdf0ec'], [0.15, '#f5b8a3'], [0.4, '#e37a5c'], [0.7, '#c0392b'], [1, '#6e1c12']],
+      marker: { line: { color: '#fff', width: 0.6 } },
+      colorbar: { title: { text: label, side: 'right' }, thickness: 14, len: 0.75 },
+    }];
+  }
+
+  const layout = {
+    geo: {
+      scope: 'usa',
+      showlakes: true,
+      lakecolor: '#eef2f5',
+      bgcolor: 'rgba(0,0,0,0)',
+    },
+    margin: { l: 0, r: 0, t: 10, b: 0 },
+    paper_bgcolor: 'rgba(0,0,0,0)',
+    height: 480,
+    font: { family: '-apple-system, Helvetica, Arial, sans-serif', color: '#4b5563' },
+  };
+
+  Plotly.newPlot(plotDiv, traceFor(selectedYear), layout, { responsive: true, displayModeBar: false });
+
+  function paint(year) {
+    Plotly.react(plotDiv, traceFor(year), layout, { responsive: true, displayModeBar: false });
+    const metric = firesByState.metric_by_year[String(year)];
+    document.getElementById('state-map-note').innerHTML =
+      `Showing <b>${metricLabels[metric] || metric}</b> for ${year}. ${firesByState.sources[metric]}`;
+    document.querySelectorAll('#state-map-year-buttons button').forEach((b) => {
+      b.classList.toggle('active', parseInt(b.dataset.year, 10) === year);
+    });
+    renderLegend(year);
+  }
+
+  function renderLegend(year) {
+    const metric = firesByState.metric_by_year[String(year)];
+    const label = metric === 'satellite_detections_firms' ? 'satellite fire detections' : 'wildfires reported';
+    const legend = document.getElementById('state-map-legend');
+    legend.innerHTML = `
+      <div class="legend-title">${year} ${label}</div>
+      <div class="legend-gradient" style="background:linear-gradient(90deg, #fdf0ec, #f5b8a3, #e37a5c, #c0392b, #6e1c12)"></div>
+      <div class="legend-scale"><span>0</span><span>${fmtNum(globalMax)}+</span></div>
+      <p class="small-note" style="margin-top:0.8rem">Darker = more ${label} that year. Color scale is fixed across all years (2020&ndash;2026) so shades are directly comparable when you switch years. Hover a state on the map for its exact count.</p>
+    `;
+  }
+
+  // year buttons
+  const btnRow = document.getElementById('state-map-year-buttons');
+  btnRow.innerHTML = years.map((y) => `<button data-year="${y}">${y}${y === 2026 ? ' (partial)' : ''}</button>`).join('');
+  btnRow.querySelectorAll('button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      selectedYear = parseInt(btn.dataset.year, 10);
+      paint(selectedYear);
+    });
+  });
+
+  paint(selectedYear);
+}
+
+// ---------------------------------------------------------------------------
+// Section: big fire case studies
 // ---------------------------------------------------------------------------
 function renderCaseCards(cases) {
   const container = document.getElementById('case-cards');
@@ -106,13 +323,13 @@ function renderCaseCards(cases) {
 }
 
 // ---------------------------------------------------------------------------
-// Section 4: interactive map
+// Section 5: interactive map (v2 dense grid + site-demo surrogate model)
 // ---------------------------------------------------------------------------
 let leafletMap, marker, circle;
 
 function initMap() {
   leafletMap = L.map('map').setView([39.8, -98.6], 4);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OpenStreetMap &copy; CARTO',
     subdomains: 'abcd',
     maxZoom: 19,
@@ -123,8 +340,8 @@ function setMapLocation(lat, lon) {
   if (marker) leafletMap.removeLayer(marker);
   if (circle) leafletMap.removeLayer(circle);
   marker = L.marker([lat, lon]).addTo(leafletMap);
-  circle = L.circle([lat, lon], { radius: 1000, color: '#ff6b35', fillOpacity: 0.12 }).addTo(leafletMap);
-  leafletMap.setView([lat, lon], 11);
+  circle = L.circle([lat, lon], { radius: 14000, color: '#c0392b', fillOpacity: 0.1 }).addTo(leafletMap);
+  leafletMap.setView([lat, lon], 9);
 }
 
 async function geocodeAddress(address) {
@@ -136,11 +353,7 @@ async function geocodeAddress(address) {
   const matches = json.result && json.result.addressMatches;
   if (!matches || matches.length === 0) return null;
   const m = matches[0];
-  return {
-    lat: m.coordinates.y,
-    lon: m.coordinates.x,
-    matchedAddress: m.matchedAddress,
-  };
+  return { lat: m.coordinates.y, lon: m.coordinates.x, matchedAddress: m.matchedAddress };
 }
 
 function nearestCell(lat, lon) {
@@ -148,43 +361,46 @@ function nearestCell(lat, lon) {
   let bestDist = Infinity;
   const cosLat = Math.cos((lat * Math.PI) / 180);
   for (const cell of state.gridIndex) {
-    const clat = cell.lat_bin + 0.5;
-    const clon = cell.lon_bin + 0.5;
+    const clat = cell.lat_bin + 0.125;
+    const clon = cell.lon_bin + 0.125;
     const dlat = lat - clat;
     const dlon = (lon - clon) * cosLat;
     const dist = Math.sqrt(dlat * dlat + dlon * dlon);
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = cell;
-    }
+    if (dist < bestDist) { bestDist = dist; best = cell; }
   }
   return { cell: best, distDeg: bestDist, distMiles: bestDist * 69 };
 }
 
-function riskBandFromProbability(p) {
-  if (p < 0.2) return 'Low';
-  if (p < 0.5) return 'Moderate';
-  if (p < 0.75) return 'High';
-  return 'Extreme';
+function renderRiskLegend(bands) {
+  const items = [
+    { label: 'Typical', color: 'var(--typical)', upto: bands.typical_upper },
+    { label: 'Moderate', color: 'var(--rmoderate)', upto: bands.moderate_upper },
+    { label: 'Elevated', color: 'var(--elevated)', upto: bands.elevated_upper },
+    { label: 'High', color: 'var(--rhigh)', upto: bands.high_upper },
+    { label: 'Extreme', color: 'var(--extreme-band)', upto: null },
+  ];
+  document.getElementById('risk-legend').innerHTML = items.map((it) => `
+    <span class="risk-legend-item">
+      <span class="risk-legend-swatch" style="background:${it.color}"></span>
+      ${it.label}${it.upto !== null ? ` (&le; ${fmtPct(it.upto, 2)})` : ` (&gt; ${fmtPct(bands.high_upper, 2)})`}
+    </span>`).join('');
 }
 
 function causeTips(causeNames) {
   const tips = {
     'Human': 'Most human-caused ignitions are preventable: check local burn-ban status before any outdoor burning, fully extinguish campfires (stir, soak, stir again), and avoid dragging trailer chains or mowing dry grass on hot/windy days.',
-    'Natural': 'Lightning-caused starts can\'t be prevented, but dry-lightning risk is a signal to have a evacuation plan ready and to clear defensible space around structures in advance.',
+    'Natural': 'Lightning-caused starts can\'t be prevented, but dry-lightning risk is a signal to have an evacuation plan ready and to clear defensible space around structures in advance.',
     'Debris and Open Burning': 'Skip debris burning on dry or windy days; check for local burn permits and burn bans first.',
     'Equipment and Vehicle Use': 'Keep spark arrestors maintained on equipment/vehicles, avoid off-road driving or parking over dry grass, and carry a fire extinguisher.',
     'Recreation and Ceremony': 'Fully extinguish campfires and coals, and avoid fireworks or sky lanterns in dry vegetation.',
     'Arson': 'Report unattended or suspicious fires immediately to local authorities.',
     'Railroad Operations': 'Rail-adjacent dry vegetation is a known ignition point after brake/wheel sparking; local agencies sometimes clear vegetation buffers along rail corridors.',
-    'Power Generation/Transmission/Distribution': 'In high-wind red-flag conditions, utilities may proactively shut off power (PSPS) in high-risk areas; sign up for utility wildfire-safety alerts if available in your area.',
+    'Power generation / transmission / distribution': 'In high-wind red-flag conditions, utilities may proactively shut off power (PSPS) in high-risk areas; sign up for utility wildfire-safety alerts if available in your area.',
     'Firearms and Explosives Use': 'Avoid target shooting with tracer/incendiary ammunition in dry vegetation.',
     'Fireworks': 'Avoid fireworks entirely in dry vegetation or during burn bans; many CA/AZ/CO/etc. counties ban all consumer fireworks during fire season.',
   };
   const out = [];
-  for (const name of causeNames) {
-    if (tips[name]) out.push(tips[name]);
-  }
+  for (const name of causeNames) if (tips[name]) out.push(tips[name]);
   if (out.length === 0) {
     out.push('Follow local fire restrictions, keep vegetation cleared 5-30 feet from structures, and have an evacuation plan ready during red-flag warning days.');
   }
@@ -194,15 +410,19 @@ function causeTips(causeNames) {
 function renderCauses(gridId) {
   const causeData = state.cellCauses[gridId];
   if (!causeData) {
-    return { html: '<p class="small-note">No nearby reported-cause history in our 2026 dataset for this area.</p>', causeNames: [] };
+    return { html: '<p class="small-note">No nearby historical reported-cause data for this area.</p>', causeNames: [] };
   }
   const generalEntries = Object.entries(causeData.general).sort((a, b) => b[1] - a[1]);
   const causeNames = generalEntries.map((e) => e[0]);
   const html = `
-    <ul>${generalEntries.map(([name, n]) => `<li><b>${name}</b> &mdash; ${n} of ${causeData.n_nearby_cases} nearby reported fires in 2026</li>`).join('')}</ul>
-    <p class="small-note">Based on ${causeData.n_nearby_cases} reported incidents within ~140 miles in the 2026 dataset.</p>
+    <ul>${generalEntries.map(([name, n]) => `<li><b>${name}</b> &mdash; ${n} of ${causeData.n_nearby_cases} nearby historically reported fires</li>`).join('')}</ul>
+    <p class="small-note">Historical reported-cause context (not the satellite-only model's target), based on ${causeData.n_nearby_cases} incidents within ~140 miles.</p>
   `;
   return { html, causeNames };
+}
+
+function dateOffset(a, b) {
+  return (new Date(a) - new Date(b)) / 86400000;
 }
 
 async function handleLookup() {
@@ -210,10 +430,7 @@ async function handleLookup() {
   const dateStr = document.getElementById('date-input').value;
   const statusEl = document.getElementById('lookup-status');
   const panel = document.getElementById('result-panel');
-  if (!address) {
-    statusEl.textContent = 'Enter a U.S. address first.';
-    return;
-  }
+  if (!address) { statusEl.textContent = 'Enter a U.S. address first.'; return; }
   statusEl.textContent = 'Locating address…';
   panel.innerHTML = '<p class="result-placeholder">Working on it…</p>';
 
@@ -233,82 +450,76 @@ async function handleLookup() {
     statusEl.textContent = 'No match found for that address. Try adding city and state, or enter coordinates as "lat, lon".';
     return;
   }
+  if (geo.lat < 24 || geo.lat > 50 || geo.lon < -125 || geo.lon > -66) {
+    statusEl.textContent = 'This model version only covers the continental U.S. (GridMET land coverage). Try a CONUS address.';
+    return;
+  }
   statusEl.textContent = `Matched: ${geo.matchedAddress}`;
   setMapLocation(geo.lat, geo.lon);
 
   const { cell, distMiles } = nearestCell(geo.lat, geo.lon);
   const cutoff = state.featureMeta.cutoff_date;
   const isPast = dateStr <= cutoff;
-  const farAway = distMiles > 190;
+  const farAway = distMiles > 20;
 
   let bodyHtml = '';
   const causes = renderCauses(cell.grid_id);
 
   if (farAway) {
-    bodyHtml += `<p class="small-note">The nearest modeled grid cell with any 2026 fire signal is ~${Math.round(distMiles)} miles away, so this is a regional approximation, not a precise local read.</p>`;
+    bodyHtml += `<p class="small-note">The nearest dense 0.25&deg; grid cell is ~${Math.round(distMiles)} miles away, so this is a regional approximation.</p>`;
   }
 
   if (isPast) {
     const events = state.dailyEvents[cell.grid_id] || {};
     const dayEvent = events[dateStr];
-    let level = 'None';
     let detailHtml = '';
+    let hasActivity = false;
     if (dayEvent) {
-      level = dayEvent.reported_fire_level && dayEvent.reported_fire_level !== 'None'
-        ? dayEvent.reported_fire_level
-        : (dayEvent.fire_count > 0 ? 'Moderate' : 'None');
+      hasActivity = true;
       detailHtml = `
         <ul>
-          <li>Satellite (MODIS) detections that day: <b>${dayEvent.fire_count}</b>${dayEvent.total_frp ? `, total fire radiative power ${dayEvent.total_frp}` : ''}</li>
-          <li>Reported fire cases that day: <b>${dayEvent.case_count}</b>${dayEvent.max_case_acres ? `, largest ${fmtAcres(dayEvent.max_case_acres)}` : ''}</li>
+          <li>Satellite (MODIS/VIIRS) detections that day: <b>${dayEvent.fire_count}</b>${dayEvent.total_frp ? `, total fire radiative power ${dayEvent.total_frp}` : ''}</li>
         </ul>`;
     } else {
-      // look for nearby days with activity for context
       const nearby = Object.keys(events).filter((d) => Math.abs(dateOffset(d, dateStr)) <= 14).sort();
-      if (nearby.length) {
-        detailHtml = `<p class="small-note">No recorded activity on this exact date. Nearby recorded activity: ${nearby.slice(0, 5).join(', ')}.</p>`;
-      } else {
-        detailHtml = '<p class="small-note">No satellite detections or reported fire cases recorded at this location in our 2026 dataset.</p>';
-      }
+      detailHtml = nearby.length
+        ? `<p class="small-note">No detections on this exact date. Nearby recorded activity: ${nearby.slice(0, 5).join(', ')}.</p>`
+        : '<p class="small-note">No satellite detections recorded at this location in our 2026 dataset.</p>';
     }
     bodyHtml += `
       <p class="source-tag">Observed data (ground truth), not a model prediction</p>
-      <span class="risk-badge risk-${level}">${level} activity</span>
+      <span class="risk-badge ${hasActivity ? 'risk-Elevated' : 'risk-Typical'}">${hasActivity ? 'Detected activity' : 'No detected activity'}</span>
       ${detailHtml}
     `;
   } else {
     const cellState = state.cellState[cell.grid_id];
     const featureVec = buildFutureFeatureVector(
-      state.featureMeta.feature_cols, cellState, dateStr, cutoff,
+      state.featureMeta.feature_cols, { ...cellState, ...cell }, dateStr, cutoff,
       state.climatology, state.featureMeta.col_medians
     );
-    const riskIdx = state.forestRisk.classes.indexOf('1.0');
-    const proba = forestPredictProba(state.forestRisk, featureVec)[riskIdx];
-    const band = riskBandFromProbability(proba);
-    const levelPred = forestPredictClass(state.forestLevel, featureVec).label;
+    const riskIdx = state.forestRisk.classes.indexOf('1');
+    const pRaw = forestPredictProba(state.forestRisk, featureVec)[riskIdx === -1 ? state.forestRisk.classes.indexOf('1.0') : riskIdx];
+    const proba = calibrateBalancedProba(pRaw, state.featureMeta.weighted_prevalence, state.featureMeta.balanced_train_prior);
+    const band = riskBandFromProbability(proba, state.riskBands);
     bodyHtml += `
-      <p class="source-tag">Random-forest model prediction (trained on 2026 data, holdout ROC AUC ${state.featureMeta.holdout_auc.toFixed(2)})</p>
-      <span class="risk-badge risk-${band}">${band} risk &middot; ${(proba * 100).toFixed(1)}%</span>
-      <div class="prob-bar-track"><div class="prob-bar-fill" style="width:${Math.min(100, proba * 100)}%"></div></div>
+      <p class="source-tag">Site-demo random-forest prediction (holdout ROC AUC ${state.featureMeta.holdout_auc.toFixed(2)}) &mdash; rescaled from the model's balanced training prior back to a realistic probability, then bucketed with the real project model's risk bands</p>
+      <span class="risk-badge risk-${band.label}">${band.label} risk &middot; ${fmtPct(proba, 3)}</span>
+      <div class="prob-bar-track"><div class="prob-bar-fill" style="width:${Math.min(100, proba * 1000)}%"></div></div>
       <ul>
-        <li>Modeled probability of a reported fire case the following day: <b>${(proba * 100).toFixed(1)}%</b></li>
-        <li>Predicted fire scale if one occurs: <b>${levelPred}</b></li>
+        <li>Modeled probability of a new satellite-detected ignition the following day: <b>${fmtPct(proba, 3)}</b></li>
+        <li>Real project model's "typical" upper bound for comparison: <b>${fmtPct(state.riskBands.typical_upper, 3)}</b></li>
       </ul>
       <p class="small-note">Future-date estimate assumes no new fire activity between the data cutoff (${cutoff}) and this date, and uses a seasonal weather estimate rather than a real forecast.</p>
     `;
   }
 
-  bodyHtml += `<h4>Potential causes</h4>${causes.html}`;
+  bodyHtml += `<h4>Historical reported causes nearby</h4>${causes.html}`;
   const tips = causeTips(causes.causeNames);
   bodyHtml += `<h4>Prevention steps</h4><ul>${tips.map((t) => `<li>${t}</li>`).join('')}</ul>`;
   bodyHtml += renderLLMBox();
 
   panel.innerHTML = `<h3>${geo.matchedAddress}</h3>` + bodyHtml;
   wireLLMBox({ address: geo.matchedAddress, dateStr, isPast, cell, causes });
-}
-
-function dateOffset(a, b) {
-  return (new Date(a) - new Date(b)) / 86400000;
 }
 
 // ---------------------------------------------------------------------------
@@ -329,7 +540,7 @@ function renderLLMBox() {
 function templateReport(ctx) {
   return `Template report (no API key used):\n\n` +
     `Location: ${ctx.address}\nDate: ${ctx.dateStr}\n\n` +
-    `${ctx.isPast ? 'Based on recorded 2026 data' : 'Based on the random-forest model'} for the nearest modeled grid cell, ` +
+    `${ctx.isPast ? 'Based on recorded satellite data' : 'Based on the site-demo random-forest model'} for the nearest 0.25-degree grid cell, ` +
     `see the risk badge and cause list above. To prevent human-caused ignition: avoid open burning on dry/windy days, ` +
     `fully extinguish campfires and coals, keep equipment spark arrestors maintained, and follow any local burn bans or fire restrictions.`;
 }
@@ -340,28 +551,18 @@ function wireLLMBox(ctx) {
   out.textContent = templateReport(ctx);
   btn.addEventListener('click', async () => {
     const key = document.getElementById('openai-key').value.trim();
-    if (!key) {
-      out.textContent = templateReport(ctx);
-      return;
-    }
+    if (!key) { out.textContent = templateReport(ctx); return; }
     out.textContent = 'Generating…';
     try {
       const prompt = `You are a wildfire risk assistant for local communities. Using ONLY the context below ` +
         `(no outside knowledge of current events), write a concise (under 100 words) plain-English report covering: ` +
-        `likelihood of fire, expected scale/severity if relevant, likely causes, and concrete human-caused-ignition prevention steps.\n\n` +
-        `Location: ${ctx.address}\nDate: ${ctx.dateStr}\nData type: ${ctx.isPast ? 'observed 2026 record' : 'random-forest model prediction'}\n` +
+        `likelihood of fire, likely causes, and concrete human-caused-ignition prevention steps.\n\n` +
+        `Location: ${ctx.address}\nDate: ${ctx.dateStr}\nData type: ${ctx.isPast ? 'observed satellite record' : 'random-forest model prediction'}\n` +
         `Nearby historical causes: ${ctx.causes.causeNames.join(', ') || 'unknown'}`;
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + key,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 220,
-        }),
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
+        body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: prompt }], max_tokens: 220 }),
       });
       const json = await res.json();
       if (json.error) throw new Error(json.error.message);
@@ -373,210 +574,207 @@ function wireLLMBox(ctx) {
 }
 
 // ---------------------------------------------------------------------------
-// Section 5: SHAP-style feature attribution
+// Section 6: REAL model analysis (from improved_artifacts, not the demo model)
 // ---------------------------------------------------------------------------
-const FEATURE_META = {
-  lat_bin: { icon: '📍', label: 'Latitude', desc: 'North-south location of the grid cell.' },
-  lon_bin: { icon: '📍', label: 'Longitude', desc: 'East-west location of the grid cell.' },
-  month: { icon: '📅', label: 'Month', desc: 'Calendar month, a coarse seasonality signal.' },
-  dayofyear: { icon: '📅', label: 'Day of year', desc: 'Day number 1-366, feeds the seasonal cycle.' },
-  sin_doy: { icon: '🔄', label: 'Season (sin)', desc: 'Cyclical encoding of time of year.' },
-  cos_doy: { icon: '🔄', label: 'Season (cos)', desc: 'Cyclical encoding of time of year.' },
-  satellite_fire_count_lag_1d: { icon: '🛰️', label: 'Satellite detections, last 1 day', desc: 'MODIS fire detections the day before.' },
-  satellite_fire_count_lag_3d: { icon: '🛰️', label: 'Satellite detections, last 3 days', desc: 'MODIS fire detections in the last 3 days.' },
-  satellite_fire_count_lag_7d: { icon: '🛰️', label: 'Satellite detections, last 7 days', desc: 'MODIS fire detections in the last week.' },
-  satellite_fire_count_lag_14d: { icon: '🛰️', label: 'Satellite detections, last 14 days', desc: 'MODIS fire detections in the last two weeks.' },
-  total_frp_lag_1d: { icon: '🔥', label: 'Fire radiative power, last 1 day', desc: 'Satellite-estimated fire intensity, last day.' },
-  total_frp_lag_3d: { icon: '🔥', label: 'Fire radiative power, last 3 days', desc: 'Satellite-estimated fire intensity, last 3 days.' },
-  total_frp_lag_7d: { icon: '🔥', label: 'Fire radiative power, last 7 days', desc: 'Satellite-estimated fire intensity, last week.' },
-  total_frp_lag_14d: { icon: '🔥', label: 'Fire radiative power, last 14 days', desc: 'Satellite-estimated fire intensity, last two weeks.' },
-  case_count_lag_1d: { icon: '🚒', label: 'Reported fires nearby, last 1 day', desc: 'Officially reported incidents, last day.' },
-  case_count_lag_3d: { icon: '🚒', label: 'Reported fires nearby, last 3 days', desc: 'Officially reported incidents, last 3 days.' },
-  case_count_lag_7d: { icon: '🚒', label: 'Reported fires nearby, last 7 days', desc: 'Officially reported incidents, last week.' },
-  case_count_lag_14d: { icon: '🚒', label: 'Reported fires nearby, last 14 days', desc: 'Officially reported incidents, last two weeks.' },
-  total_case_acres_lag_1d: { icon: '🌲', label: 'Acres burned nearby, last 1 day', desc: 'Reported acreage, last day.' },
-  total_case_acres_lag_3d: { icon: '🌲', label: 'Acres burned nearby, last 3 days', desc: 'Reported acreage, last 3 days.' },
-  total_case_acres_lag_7d: { icon: '🌲', label: 'Acres burned nearby, last 7 days', desc: 'Reported acreage, last week.' },
-  total_case_acres_lag_14d: { icon: '🌲', label: 'Acres burned nearby, last 14 days', desc: 'Reported acreage, last two weeks.' },
-  days_since_satellite_fire: { icon: '⏱️', label: 'Days since last satellite fire', desc: 'How long since MODIS last saw fire here.' },
-  days_since_reported_case: { icon: '⏱️', label: 'Days since last reported fire', desc: 'How long since an incident was last reported here.' },
-  temperature_2m_max: { icon: '🌡️', label: 'Max temperature', desc: 'Daily maximum air temperature.' },
-  temperature_2m_min: { icon: '🌡️', label: 'Min temperature', desc: 'Daily minimum air temperature.' },
-  temperature_2m_mean: { icon: '🌡️', label: 'Mean temperature', desc: 'Daily average air temperature.' },
-  temperature_2m_range: { icon: '🌡️', label: 'Temperature range', desc: 'Daily high minus low, a dryness signal.' },
-  precipitation_sum: { icon: '🌧️', label: 'Rainfall', desc: 'Total daily precipitation.' },
-  wind_speed_10m_max: { icon: '💨', label: 'Max wind speed', desc: 'Daily peak wind speed, drives fire spread.' },
-  sunshine_duration: { icon: '☀️', label: 'Sunshine duration', desc: 'Seconds of direct sunshine that day.' },
-  sunshine_hours: { icon: '☀️', label: 'Sunshine hours', desc: 'Hours of direct sunshine that day.' },
+const FEATURE_LABELS = {
+  lat: 'Latitude', lon: 'Longitude', month: 'Month', sin_doy: 'Season (sin)', cos_doy: 'Season (cos)',
+  tmmx: 'Max temperature (GridMET)', tmmn: 'Min temperature (GridMET)', pr: 'Precipitation (GridMET)',
+  vs: 'Wind speed (GridMET)', rmin: 'Min relative humidity (GridMET)', vpd: 'Vapor pressure deficit',
+  erc: 'Energy release component', fm100: '100-hr dead fuel moisture',
+  fire_count_lag_1d: 'Satellite detections, last 1 day', frp_lag_1d: 'Fire radiative power, last 1 day',
+  fire_count_lag_3d: 'Satellite detections, last 3 days', frp_lag_3d: 'Fire radiative power, last 3 days',
+  fire_count_lag_7d: 'Satellite detections, last 7 days', frp_lag_7d: 'Fire radiative power, last 7 days',
+  fire_count_lag_14d: 'Satellite detections, last 14 days', frp_lag_14d: 'Fire radiative power, last 14 days',
+  population_per_sq_km: 'Population density', primary_road_km_per_100_sq_km: 'Road density',
+  log_population_density: 'Log population density', distance_to_fire_station_km: 'Distance to fire/EMS station',
 };
-
-function featureMetaFor(name) {
-  return FEATURE_META[name] || { icon: '📊', label: name, desc: 'Model input feature.' };
-}
-
-function renderShapSection(shap) {
-  const top = shap.summary.slice(0, 8);
-  const cardsHtml = top.map((f) => {
-    const meta = featureMetaFor(f.feature);
-    const up = f.mean_signed_shap >= 0;
-    return `
-      <div class="variable-explainer-card">
-        <span class="ve-icon">${meta.icon}</span>
-        <strong>${meta.label}</strong>
-        <p>${meta.desc}</p>
-        <span class="ve-shap-tag ${up ? 'up' : 'down'}">${up ? '↑ raises risk' : '↓ lowers risk'} on average</span>
-      </div>`;
-  }).join('');
-  document.getElementById('shap-cards').innerHTML = cardsHtml;
-
-  const top15 = shap.summary.slice(0, 15);
-  new Chart(document.getElementById('chart-shap'), {
-    type: 'bar',
-    data: {
-      labels: top15.map((f) => featureMetaFor(f.feature).label),
-      datasets: [{
-        label: 'Mean |SHAP value|',
-        data: top15.map((f) => f.mean_abs_shap),
-        backgroundColor: top15.map((f) => (f.mean_signed_shap >= 0 ? '#c0392b' : '#2f9e6e')),
-        borderRadius: 3,
-      }],
-    },
-    options: {
-      indexAxis: 'y',
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => `Mean |SHAP| = ${ctx.raw.toFixed(4)} probability points`,
-          },
-        },
-      },
-      scales: {
-        x: { ticks: { color: '#4b5563' }, grid: { color: '#eee' }, title: { display: true, text: 'Mean |SHAP value| (probability points)', color: '#4b5563' } },
-        y: { ticks: { color: '#1f2937' }, grid: { display: false } },
-      },
-    },
-  });
-
-  document.getElementById('shap-note').innerHTML =
-    `Computed with a Shapley-sampling estimator (${shap.method}) over ${shap.n_instances_explained} held-out ` +
-    `days, explaining the risk model's predicted probability. Base rate (average predicted risk across the ` +
-    `background sample): ${(shap.base_value * 100).toFixed(1)}%. ` +
-    `The dominant drivers are recent nearby fire history (how long since the last reported fire, and how many ` +
-    `fires/acres in the last 1-14 days) &mdash; weather and location matter, but recent activity dominates.`;
-}
+function labelFor(f) { return FEATURE_LABELS[f] || f; }
 
 // ---------------------------------------------------------------------------
-// Section 6: model performance
+// Section 2.5: why machine learning (live stats pulled from the real model's
+// own evaluated performance, not separately-hardcoded numbers)
 // ---------------------------------------------------------------------------
-function renderPerformanceSection(perf) {
+function renderWhyMLSection(m) {
+  const testSplit = m.metrics_by_split.find((s) => s.split === 'temporal_test') || m.metrics_by_split[0];
+  const ab = m.coordinate_ablation;
+  const full = ab.find((r) => r.feature_strategy === 'full');
+  const conditionsOnly = ab.find((r) => r.feature_strategy === 'conditions_only');
+  const skillDrop = full && conditionsOnly ? (1 - conditionsOnly.PR_AUC / full.PR_AUC) : null;
+
   const kpis = [
-    { title: 'ROC AUC', value: perf.roc_auc.toFixed(3), note: 'risk model, held-out days' },
-    { title: 'Precision @ 0.35', value: (perf.precision * 100).toFixed(1) + '%', note: 'of flagged days, how many were real' },
-    { title: 'Recall @ 0.35', value: (perf.recall * 100).toFixed(1) + '%', note: 'of real fire-days, how many were flagged' },
-    { title: 'F1 @ 0.35', value: perf.f1.toFixed(3), note: 'precision/recall balance' },
-    { title: 'Accuracy @ 0.35', value: (perf.accuracy * 100).toFixed(1) + '%', note: 'can be misleading -- see note below' },
-    { title: 'Fire-scale accuracy', value: (perf.level_model.accuracy * 100).toFixed(1) + '%', note: '5-class scale model' },
+    {
+      title: 'Lift at top 1% of cells',
+      value: testSplit.lift_top_1pct.toFixed(1) + '×',
+      note: 'more real ignitions found there than chance would predict',
+    },
+    {
+      title: 'Catch rate on a 5% alert budget',
+      value: fmtPct(testSplit.alert_budget_5pct_recall, 0),
+      note: `of real ignitions, watching only ${fmtPct(testSplit.alert_budget_5pct_flagged_fraction, 1)} of all grid-days`,
+    },
+    {
+      title: 'Skill lost using only location + season',
+      value: skillDrop !== null ? '−' + fmtPct(skillDrop, 0) : '–',
+      note: 'drop in PR AUC without real fire-weather or activity signals',
+    },
+  ];
+  document.getElementById('why-ml-kpis').innerHTML = kpis.map((k) => `
+    <div class="kpi-card"><div class="kpi-title">${k.title}</div><div class="kpi-value">${k.value}</div><div class="kpi-note">${k.note}</div></div>`).join('');
+
+  document.getElementById('why-ml-callout').innerHTML =
+    `In the real project model's own held-out evaluation: the riskiest 1% of grid-cell-days contain <b>${testSplit.lift_top_1pct.toFixed(1)}&times;</b> ` +
+    `as many real ignitions as you'd expect by chance, and watching just the riskiest <b>${fmtPct(testSplit.alert_budget_5pct_flagged_fraction, 1)}</b> of all ` +
+    `grid-days still catches <b>${fmtPct(testSplit.alert_budget_5pct_recall, 0)}</b> of the ignitions that actually happened. ` +
+    (skillDrop !== null ? `Strip out real fire-weather and recent-activity data and keep only location and season, and predictive skill (PR AUC) drops by <b>${fmtPct(skillDrop, 0)}</b> &mdash; concrete evidence the model is learning from real conditions, not just memorizing where fires usually are.` : '');
+}
+
+function renderModelAnalysis(m) {
+  const card = m.model_card;
+  document.getElementById('model-card-summary').innerHTML =
+    `Winning model: <b>${card.model_name}</b> (${card.calibration_method} calibration, "${card.feature_strategy}" feature set). ` +
+    `Target: <i>${card.label}</i>, at ${card.grid_degrees}&deg; resolution, ${card.decision_horizon_days}-day horizon, ${card.geographic_scope}. ` +
+    `Trained ${card.training_years.join('–')}, calibrated on ${card.calibration_year}, tested on ${card.test_years.join(', ')}.`;
+
+  const sv = card.selected_validation_metrics;
+  const testSplit = m.metrics_by_split.find((s) => s.split === 'temporal_test') || m.metrics_by_split[0];
+  const kpis = [
+    { title: 'ROC AUC', value: sv.ROC_AUC.toFixed(3), note: 'held-out validation' },
+    { title: 'PR AUC', value: sv.PR_AUC.toFixed(4), note: 'precision-recall, rare-event aware' },
+    { title: 'Brier score', value: sv.Brier.toFixed(5), note: 'lower is better calibrated' },
+    { title: 'Lift @ top 1%', value: testSplit.lift_top_1pct.toFixed(1) + '×', note: 'vs. random baseline' },
+    { title: 'Recall @ 80% target', value: fmtPct(testSplit.recall_80_recall, 0), note: `flags ${fmtPct(testSplit.recall_80_flagged_fraction, 1)} of all cell-days` },
+    { title: 'Test positives', value: fmtNum(testSplit.positives), note: `of ${fmtNum(testSplit.rows)} held-out rows` },
   ];
   document.getElementById('kpi-cards').innerHTML = kpis.map((k) => `
-    <div class="kpi-card">
-      <div class="kpi-title">${k.title}</div>
-      <div class="kpi-value">${k.value}</div>
-      <div class="kpi-note">${k.note}</div>
-    </div>`).join('');
+    <div class="kpi-card"><div class="kpi-title">${k.title}</div><div class="kpi-value">${k.value}</div><div class="kpi-note">${k.note}</div></div>`).join('');
 
-  new Chart(document.getElementById('chart-roc'), {
-    type: 'line',
-    data: {
-      labels: perf.roc_curve.fpr.map((x) => x.toFixed(2)),
-      datasets: [
-        {
-          label: 'Model',
-          data: perf.roc_curve.fpr.map((x, i) => ({ x, y: perf.roc_curve.tpr[i] })),
-          borderColor: '#c0392b',
-          backgroundColor: 'rgba(192,57,43,0.08)',
-          fill: true,
-          tension: 0.15,
-          pointRadius: 0,
-        },
-        {
-          label: 'Random baseline',
-          data: [{ x: 0, y: 0 }, { x: 1, y: 1 }],
-          borderColor: '#94a3b8',
-          borderDash: [6, 4],
-          pointRadius: 0,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      parsing: false,
-      plugins: { legend: { labels: { color: '#4b5563' } } },
-      scales: {
-        x: { type: 'linear', min: 0, max: 1, title: { display: true, text: 'False positive rate', color: '#4b5563' }, ticks: { color: '#4b5563' }, grid: { color: '#eee' } },
-        y: { min: 0, max: 1, title: { display: true, text: 'True positive rate', color: '#4b5563' }, ticks: { color: '#4b5563' }, grid: { color: '#eee' } },
-      },
-    },
-  });
-
-  new Chart(document.getElementById('chart-calibration'), {
-    type: 'line',
-    data: {
-      datasets: [
-        {
-          label: 'Observed rate',
-          data: perf.calibration.map((c) => ({ x: c.predicted_mean, y: c.observed_rate })),
-          borderColor: '#c0392b',
-          backgroundColor: '#c0392b',
-          showLine: true,
-          tension: 0.1,
-        },
-        {
-          label: 'Perfect calibration',
-          data: [{ x: 0, y: 0 }, { x: 1, y: 1 }],
-          borderColor: '#94a3b8',
-          borderDash: [6, 4],
-          pointRadius: 0,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      parsing: false,
-      plugins: { legend: { labels: { color: '#4b5563' } } },
-      scales: {
-        x: { type: 'linear', min: 0, max: 1, title: { display: true, text: 'Mean predicted probability (bin)', color: '#4b5563' }, ticks: { color: '#4b5563' }, grid: { color: '#eee' } },
-        y: { min: 0, max: 1, title: { display: true, text: 'Observed fire rate (bin)', color: '#4b5563' }, ticks: { color: '#4b5563' }, grid: { color: '#eee' } },
-      },
-    },
-  });
-
-  const cm = perf.confusion_matrix;
-  document.getElementById('confusion-table').innerHTML = `
-    <tr><th></th><th>Predicted: fire</th><th>Predicted: no fire</th></tr>
-    <tr><th>Actual: fire</th><td class="hit">${cm.tp}</td><td class="miss">${cm.fn}</td></tr>
-    <tr><th>Actual: no fire</th><td class="miss">${cm.fp}</td><td class="hit">${cm.tn}</td></tr>
+  // ---- 02: split summary (rows/positives per holdout split) ----
+  const splitLabel = { calibration: 'Calibration (2024)', temporal_test: 'Temporal test (2025)', spatial_test: 'Spatial test (unseen blocks)' };
+  document.getElementById('split-summary-table').innerHTML = `
+    <tr><th>Split</th><th>Rows</th><th>Positives</th><th>Weighted prevalence</th></tr>
+    ${m.metrics_by_split.map((s) => `<tr><td>${splitLabel[s.split] || s.split}</td><td>${fmtNum(s.rows)}</td><td>${fmtNum(s.positives)}</td><td>${fmtPct(s.positives / s.rows, 2)} (sampled; true population rate is lower)</td></tr>`).join('')}
   `;
 
-  document.getElementById('level-table').innerHTML = `
-    <tr><th>Scale</th><th>Support</th><th>Precision</th><th>Recall</th></tr>
-    ${perf.level_model.per_class.map((c) => `<tr><td>${c.class}</td><td>${c.support}</td><td>${(c.precision * 100).toFixed(0)}%</td><td>${(c.recall * 100).toFixed(0)}%</td></tr>`).join('')}
+  // ---- 03: candidate model leaderboard ----
+  const candidates = [...m.candidate_results].sort((a, b) => b.PR_AUC - a.PR_AUC);
+  document.getElementById('candidate-table').innerHTML = `
+    <tr><th>Model</th><th>Feature set</th><th>Calibration</th><th>PR AUC</th><th>ROC AUC</th><th>Brier</th></tr>
+    ${candidates.map((r, i) => {
+      const isWinner = r.model === card.model_name && r.feature_strategy === card.feature_strategy && r.calibration === card.calibration_method;
+      const row = `<td>${r.model.replace(/_/g, ' ')}</td><td>${r.feature_strategy.replace(/_/g, ' ')}</td><td>${r.calibration}</td><td>${r.PR_AUC.toFixed(4)}</td><td>${r.ROC_AUC.toFixed(3)}</td><td>${r.Brier.toFixed(5)}</td>`;
+      return isWinner ? `<tr style="background:var(--accent-soft);font-weight:700"><td>&#9733; ${r.model.replace(/_/g, ' ')}</td><td>${r.feature_strategy.replace(/_/g, ' ')}</td><td>${r.calibration}</td><td>${r.PR_AUC.toFixed(4)}</td><td>${r.ROC_AUC.toFixed(3)}</td><td>${r.Brier.toFixed(5)}</td></tr>` : `<tr>${row}</tr>`;
+    }).join('')}
   `;
 
-  document.getElementById('performance-takeaway').innerHTML = `
-    <h4>How to read this</h4>
+  // ---- 04: full metrics-by-split table ----
+  document.getElementById('split-metrics-table').innerHTML = `
+    <tr><th>Split</th><th>ROC AUC</th><th>PR AUC</th><th>Brier</th><th>ECE (15-bin)</th><th>Lift @ top 1%</th><th>Lift @ top 5%</th></tr>
+    ${m.metrics_by_split.map((s) => `<tr><td>${splitLabel[s.split] || s.split}</td><td>${s.ROC_AUC.toFixed(3)}</td><td>${s.PR_AUC.toFixed(4)}</td><td>${s.Brier.toFixed(5)}</td><td>${s.ECE_15.toFixed(4)}</td><td>${s.lift_top_1pct.toFixed(1)}&times;</td><td>${s.lift_top_5pct.toFixed(1)}&times;</td></tr>`).join('')}
+  `;
+
+  // ---- 04: threshold operating points, per split ----
+  const thresholdRows = [];
+  m.metrics_by_split.forEach((s) => {
+    thresholdRows.push({ split: splitLabel[s.split] || s.split, name: 'Recall-80 target', precision: s.recall_80_precision, recall: s.recall_80_recall, flagged: s.recall_80_flagged_fraction, farate: s.recall_80_false_alarm_rate });
+    thresholdRows.push({ split: splitLabel[s.split] || s.split, name: '5% alert budget', precision: s.alert_budget_5pct_precision, recall: s.alert_budget_5pct_recall, flagged: s.alert_budget_5pct_flagged_fraction, farate: s.alert_budget_5pct_false_alarm_rate });
+  });
+  document.getElementById('threshold-table').innerHTML = `
+    <tr><th>Split</th><th>Operating point</th><th>Precision</th><th>Recall</th><th>Flagged fraction</th><th>False alarm rate</th></tr>
+    ${thresholdRows.map((r) => `<tr><td>${r.split}</td><td>${r.name}</td><td>${fmtPct(r.precision, 1)}</td><td>${fmtPct(r.recall, 1)}</td><td>${fmtPct(r.flagged, 1)}</td><td>${fmtPct(r.farate, 1)}</td></tr>`).join('')}
+  `;
+
+  // ---- 05: permutation + SHAP importance tables ----
+  const perm = [...m.permutation_importance].sort((a, b) => b.importance_mean - a.importance_mean).slice(0, 10);
+  document.getElementById('perm-importance-table').innerHTML = `
+    <tr><th>Feature</th><th>Importance</th></tr>
+    ${perm.map((r) => `<tr><td>${r.feature}</td><td>${r.importance_mean.toFixed(4)} &plusmn; ${r.importance_std.toFixed(4)}</td></tr>`).join('')}
+  `;
+  const shap = [...m.shap_importance].sort((a, b) => b.mean_absolute_shap - a.mean_absolute_shap).slice(0, 10);
+  document.getElementById('shap-importance-table').innerHTML = `
+    <tr><th>Feature</th><th>Mean |SHAP|</th></tr>
+    ${shap.map((r) => `<tr><td>${r.feature}</td><td>${r.mean_absolute_shap.toFixed(4)}</td></tr>`).join('')}
+  `;
+
+  const ab = m.coordinate_ablation;
+  document.getElementById('ablation-table').innerHTML = `
+    <tr><th>Feature set</th><th>PR AUC</th><th>ROC AUC</th><th>Brier</th></tr>
+    ${ab.map((r) => `<tr><td>${r.feature_strategy.replace(/_/g, ' ')}</td><td>${r.PR_AUC.toFixed(4)}</td><td>${r.ROC_AUC.toFixed(3)}</td><td>${r.Brier.toFixed(5)}</td></tr>`).join('')}
+  `;
+  const full = ab.find((r) => r.feature_strategy === 'full');
+  const noCoord = ab.find((r) => r.feature_strategy === 'no_coordinates');
+  const condOnly = ab.find((r) => r.feature_strategy === 'conditions_only');
+  if (full && noCoord && condOnly) {
+    const dropNoCoord = 1 - noCoord.PR_AUC / full.PR_AUC;
+    const dropCondOnly = 1 - condOnly.PR_AUC / full.PR_AUC;
+    document.getElementById('ablation-callout').innerHTML =
+      `Dropping <code>lat</code>/<code>lon</code> alone (<b>no_coordinates</b>) costs <b>${fmtPct(dropNoCoord, 1)}</b> of PR AUC. ` +
+      `Keeping only fire-weather and history (<b>conditions_only</b>, also excluding month/day-of-year) costs <b>${fmtPct(dropCondOnly, 1)}</b>. ` +
+      `Both drops are real but modest &mdash; location helps, but the bulk of predictive power survives without it, meaning the model leans on ` +
+      `actual weather and recent-activity signals rather than simply memorizing fire-prone places.`;
+  }
+
+  // ---- 06: bootstrap + risk bands ----
+  const ci = m.bootstrap_ci;
+  document.getElementById('bootstrap-cards').innerHTML = ['ROC_AUC', 'PR_AUC', 'Brier'].map((key) => {
+    const c = ci[key];
+    const digits = key === 'PR_AUC' || key === 'Brier' ? 4 : 3;
+    return `<div class="kpi-card"><div class="kpi-title">${key.replace('_', ' ')}</div><div class="kpi-value">${c.median.toFixed(digits)}</div><div class="kpi-note">95% CI ${c.lower_95.toFixed(digits)}–${c.upper_95.toFixed(digits)}</div></div>`;
+  }).join('');
+
+  const rb = card.risk_bands;
+  const bands = [
+    { name: 'Typical', lo: 0, hi: rb.typical_upper },
+    { name: 'Moderate', lo: rb.typical_upper, hi: rb.moderate_upper },
+    { name: 'Elevated', lo: rb.moderate_upper, hi: rb.elevated_upper },
+    { name: 'High', lo: rb.elevated_upper, hi: rb.high_upper },
+    { name: 'Extreme', lo: rb.high_upper, hi: null },
+  ];
+  document.getElementById('risk-band-table').innerHTML = `
+    <tr><th>Band</th><th>Calibrated probability range</th></tr>
+    ${bands.map((b) => `<tr><td><span class="risk-badge risk-${b.name}" style="font-size:0.78rem">${b.name}</span></td><td>${fmtPct(b.lo, 2)} &ndash; ${b.hi === null ? 'and above' : fmtPct(b.hi, 2)}</td></tr>`).join('')}
+  `;
+
+  document.getElementById('limitations-box').innerHTML = `
+    <h4>Known limitations (from the model card)</h4>
+    <ul>${card.limitations.map((l) => `<li>${l}</li>`).join('')}</ul>
+  `;
+  document.getElementById('next-steps-box').innerHTML = `
+    <h4>Next recommended research steps (from the notebook's own discussion)</h4>
     <ul>
-      <li>Reported fires are rare: only <strong>${(perf.test_positive_rate * 100).toFixed(1)}%</strong> of held-out grid-days actually had one reported the next day. With that imbalance, <strong>accuracy is misleading</strong> &mdash; a model that always predicts "no fire" would already score ~${(100 - perf.test_positive_rate * 100).toFixed(1)}% accuracy while missing every real fire.</li>
-      <li>We use a low decision threshold (0.35, matching the original notebook) because <strong>missing a real fire risk (a false negative) is far more costly than a false alarm</strong>. That's why recall (${(perf.recall * 100).toFixed(0)}%) is tuned high at the cost of precision (${(perf.precision * 100).toFixed(0)}%) &mdash; most flagged days turn out calm, but very few real fire-days slip through.</li>
-      <li>ROC AUC of <strong>${perf.roc_auc.toFixed(2)}</strong> means the model ranks a random fire-day above a random non-fire-day about ${(perf.roc_auc * 100).toFixed(0)}% of the time &mdash; a meaningfully-better-than-chance signal, not a guarantee for any single address.</li>
-      <li>The fire-<em>scale</em> model (None/Low/Moderate/High/Extreme) is much more accurate on the dominant "None" class than on rarer large-fire classes (see the table) &mdash; there are simply far fewer big-fire examples to learn from in one season of data.</li>
-      <li>Trained on ${perf.n_train_rows.toLocaleString()} grid-days, evaluated on ${perf.n_test_rows.toLocaleString()} held-out grid-days from later in the season (a true time-based split), with ${perf.n_trees} trees and ${perf.n_features} input features.</li>
+      <li>Prospective, forward-looking validation against fires as they happen, not just retrospective holdouts.</li>
+      <li>Independent review by domain/fire-science experts before any operational use.</li>
+      <li>Extend beyond the continental U.S. (GridMET's coverage limit) to Alaska, Hawaii, and other regions.</li>
+      <li>Model fire spread and behavior, not just next-day detection onset.</li>
+      <li>Incorporate additional data sources (e.g. finer-resolution fuels data, real-time human activity signals).</li>
+      <li>Continue monitoring calibration drift as new years of data arrive, especially for partial/provisional 2026 data.</li>
     </ul>
   `;
+}
+
+// ---------------------------------------------------------------------------
+// Scroll reveal + section nav dots (lightweight scrollytelling techniques)
+// ---------------------------------------------------------------------------
+function wireScrollEffects() {
+  const reveals = document.querySelectorAll('.reveal');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e) => { if (e.isIntersecting) e.target.classList.add('is-visible'); });
+  }, { threshold: 0.12 });
+  reveals.forEach((el) => io.observe(el));
+
+  const sections = document.querySelectorAll('main > section[id]');
+  const nav = document.getElementById('section-nav');
+  nav.innerHTML = Array.from(sections).map((s) => `<a href="#${s.id}" data-id="${s.id}" title="${s.id}"></a>`).join('');
+  const navLinks = nav.querySelectorAll('a');
+  const navIo = new IntersectionObserver((entries) => {
+    entries.forEach((e) => {
+      const link = nav.querySelector(`a[data-id="${e.target.id}"]`);
+      if (e.isIntersecting) {
+        navLinks.forEach((l) => l.classList.remove('active'));
+        link.classList.add('active');
+      }
+    });
+  }, { threshold: 0.5 });
+  sections.forEach((s) => navIo.observe(s));
 }
 
 // ---------------------------------------------------------------------------
@@ -584,7 +782,7 @@ function renderPerformanceSection(perf) {
 // ---------------------------------------------------------------------------
 async function main() {
   const [annual, bigFires, gridIndex, cellState, cellCauses, dailyEvents,
-    forestRisk, forestLevel, featureMeta, climatology, shapAnalysis, modelPerformance] = await Promise.all([
+    forestRisk, featureMeta, climatology, modelAnalysis, annualLoss, firesByState] = await Promise.all([
     loadJSON('annual_stats.json'),
     loadJSON('big_fires.json'),
     loadJSON('grid_index.json'),
@@ -592,22 +790,26 @@ async function main() {
     loadJSON('cell_causes.json'),
     loadJSON('daily_events.json'),
     loadJSON('forest_risk.json'),
-    loadJSON('forest_level.json'),
     loadJSON('feature_meta.json'),
     loadJSON('climatology.json'),
-    loadJSON('shap_analysis.json'),
-    loadJSON('model_performance.json'),
+    loadJSON('improved_model_analysis.json'),
+    loadJSON('annual_loss.json'),
+    loadJSON('fires_by_state.json'),
   ]);
   Object.assign(state, {
-    gridIndex, cellState, cellCauses, dailyEvents, forestRisk, forestLevel, featureMeta, climatology,
+    gridIndex, cellState, cellCauses, dailyEvents, forestRisk, featureMeta, climatology,
+    riskBands: modelAnalysis.model_card.risk_bands,
   });
 
+  renderLossSection(annualLoss, annual);
   renderStoryCharts(annual);
+  renderStateMap(firesByState);
   renderCaseCards(bigFires);
+  renderRiskLegend(state.riskBands);
   document.getElementById('cutoff-date-label').textContent = featureMeta.cutoff_date;
   initMap();
-  renderShapSection(shapAnalysis);
-  renderPerformanceSection(modelPerformance);
+  renderWhyMLSection(modelAnalysis);
+  wireScrollEffects();
 
   document.getElementById('lookup-btn').addEventListener('click', handleLookup);
   document.getElementById('address-input').addEventListener('keydown', (e) => {
@@ -615,8 +817,11 @@ async function main() {
   });
 }
 
-main().catch((e) => {
-  console.error(e);
-  document.body.insertAdjacentHTML('afterbegin',
-    `<div style="background:#e63946;color:#fff;padding:1rem;text-align:center">Failed to load site data: ${e.message}</div>`);
-});
+// ---------------------------------------------------------------------------
+// Boot: methodology page (separate page, just the real model analysis)
+// ---------------------------------------------------------------------------
+async function mainMethodology() {
+  const modelAnalysis = await loadJSON('improved_model_analysis.json');
+  renderModelAnalysis(modelAnalysis);
+  wireScrollEffects();
+}

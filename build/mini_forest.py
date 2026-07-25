@@ -49,7 +49,7 @@ class MiniForest:
         self.feature_importances_ = None
         self.n_features_ = None
 
-    def fit(self, X, y, feature_names=None):
+    def fit(self, X, y, feature_names=None, sample_weight=None):
         rng = np.random.default_rng(self.random_state)
         X = np.asarray(X, dtype=np.float64)
         y = np.asarray(y)
@@ -66,15 +66,28 @@ class MiniForest:
         by_class = [np.where(y_idx == c)[0] for c in range(n_classes)]
         importances = np.zeros(n_features)
 
+        if sample_weight is not None:
+            sample_weight = np.asarray(sample_weight, dtype=np.float64)
+
         for t in range(self.n_estimators):
-            # balanced_subsample-style bootstrap: equal draws per class
+            # balanced_subsample-style bootstrap: equal draws per class, but
+            # (when sample_weight is given, e.g. case-control restoring
+            # weights) draw within each class proportional to that weight
+            # rather than uniformly -- this keeps the rare-class oversampling
+            # while still respecting how much of the real population each
+            # sampled row stands in for.
             per_class_n = max(1, self.bootstrap_size // n_classes)
             idx_parts = []
             for c in range(n_classes):
                 pool = by_class[c]
                 if len(pool) == 0:
                     continue
-                draw = rng.choice(pool, size=per_class_n, replace=True)
+                if sample_weight is not None:
+                    w = sample_weight[pool]
+                    w = w / w.sum()
+                    draw = rng.choice(pool, size=per_class_n, replace=True, p=w)
+                else:
+                    draw = rng.choice(pool, size=per_class_n, replace=True)
                 idx_parts.append(draw)
             boot_idx = np.concatenate(idx_parts)
             rng.shuffle(boot_idx)

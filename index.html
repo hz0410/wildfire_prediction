@@ -3,90 +3,174 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>PTA Wildfire Risk &mdash; From National Trend to Your Address</title>
+<title>PTA Wildfire Risk v2 &mdash; From National Trend to Your Address</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
 
+<nav class="top-pages-nav">
+  <a href="index.html" class="active">Prediction model</a>
+  <a href="methodology.html">Methodology</a>
+</nav>
+
+<nav class="section-nav" id="section-nav"></nav>
+
 <header class="hero">
   <div class="hero-inner">
-    <p class="eyebrow">MODIS + NIFC + PTA random-forest model &middot; 2026</p>
+    <p class="eyebrow">MODIS/FIRMS + GridMET + NIFC &middot; improved model, 2020&ndash;2026</p>
     <h1>When a Spark Becomes a Wildfire</h1>
     <p class="lede">
       Every year tens of thousands of wildfires burn across the United States.
-      Most are small. Some destroy entire towns. This page walks from the
-      national trend down to a random-forest risk model for a single address
-      &mdash; built from real 2026 satellite detections, incident reports, and
-      weather data.
+      This page walks from the six-year national satellite record down to an
+      address-level risk model &mdash; built on an improved random-forest /
+      gradient-boosting pipeline with real GridMET fire-weather data, human
+      activity features, and rigorous held-out evaluation.
     </p>
-    <a class="scroll-cue" href="#section-fires">Scroll to explore &darr;</a>
+    <a class="scroll-cue" href="#section-loss">Scroll to explore &darr;</a>
   </div>
 </header>
 
 <main>
 
-  <!-- SECTION 1: fires per year -->
-  <section id="section-fires" class="story-section">
-    <div class="story-text">
-      <p class="kicker">01 &middot; The national picture</p>
-      <h2>How many wildfires happen every year?</h2>
-      <p>
-        Since 1983, the National Interagency Coordination Center has tracked
-        every wildfire reported by federal, state, and local agencies. The
-        count swings year to year with weather and drought &mdash; but it has
-        rarely dropped below 45,000 fires a year, and some years top 90,000.
-      </p>
-      <p id="fires-stat-callout" class="callout"></p>
+  <!-- SECTION 0: the cost of fire -->
+  <section id="section-loss" class="story-section-full reveal">
+    <p class="kicker center">01 &middot; The cost of fire</p>
+    <h2 class="center">What does a wildfire season actually cost the U.S.?</h2>
+    <p class="center sub">
+      Acres burned tell you how much land a fire touched, not what it took
+      from people. This section tracks the dollar cost of U.S. wildfires,
+      2020&ndash;2026, using NOAA's official disaster-cost tracker where it
+      exists, and clearly-flagged third-party estimates where it doesn't.
+    </p>
+    <span class="data-tag real center" style="display:block;width:fit-content;margin:0 auto 0.8rem">Real, sourced figures &mdash; methodology varies by year, see notes</span>
+
+    <div class="chart-grid">
+      <div class="chart-panel">
+        <h4>Estimated wildfire cost by year (CPI-adjusted where available)</h4>
+        <canvas id="chart-loss" style="max-height:340px"></canvas>
+      </div>
+      <div class="chart-panel">
+        <h4>Acres burned vs. dollar loss, by year</h4>
+        <canvas id="chart-loss-vs-acres" style="max-height:340px"></canvas>
+      </div>
     </div>
-    <div class="story-chart">
-      <canvas id="chart-fires"></canvas>
-    </div>
+
+    <div id="loss-analysis" class="takeaway-box"></div>
+    <p class="callout" style="margin-top:1rem">
+      Sources: <a href="https://www.ncei.noaa.gov/access/billions/" target="_blank" rel="noopener">NOAA NCEI Billion-Dollar Weather and Climate Disasters</a>
+      (2020&ndash;2024, discontinued after the 2024 edition);
+      <a href="https://www.accuweather.com/en/weather-news/accuweather-estimates-more-than-250-billion-in-damages-and-economic-loss-from-la-wildfires/1733821" target="_blank" rel="noopener">AccuWeather</a>
+      (2025 Los Angeles fires estimate);
+      <a href="https://coloradosun.com/2026/07/24/colorado-wildfire-quarter-billion-dollars-early-estimate/" target="_blank" rel="noopener">Colorado Sun</a>,
+      Oregon and Utah state fire agencies (2026 season-to-date, partial).
+    </p>
   </section>
 
-  <!-- SECTION 2: acres / damage per year -->
-  <section id="section-damage" class="story-section reverse">
-    <div class="story-text">
-      <p class="kicker">02 &middot; The damage</p>
-      <h2>Fewer fires don't mean less damage</h2>
-      <p>
-        The number of fires and the acreage they burn don't move together.
-        2023 had a below-average fire count but also the lowest acreage burned
-        in over a decade; 2020 and 2015 both burned over 10 million acres.
-        On average, roughly <strong id="human-caused-avg">&ndash;</strong>% of
-        wildfires each year are human-caused &mdash; debris burning, equipment,
-        campfires, arson, and fireworks &mdash; rather than lightning.
-      </p>
-      <p class="callout">Source: National Interagency Fire Center (NIFC), Situation Report statistics.</p>
+  <!-- SECTION 1: fires per year, state by state -->
+  <section id="section-fires" class="story-section-full reveal">
+    <p class="kicker center">02 &middot; The national picture, state by state</p>
+    <h2 class="center">How many wildfires does each state report, year by year?</h2>
+    <p class="center sub">
+      Since 1983, the National Interagency Coordination Center has tracked
+      every wildfire reported by federal, state, and local agencies nationally
+      &mdash; rarely fewer than 45,000 fires a year, sometimes over 90,000. The
+      map below breaks that down by state, using NIFC's own state-by-state
+      report tables for 2020&ndash;2025. Darker shading means more fires
+      reported that year.
+    </p>
+    <p id="fires-stat-callout" class="callout center" style="margin:0 auto 1rem;max-width:680px"></p>
+
+    <div class="state-map-controls" id="state-map-year-buttons"></div>
+
+    <div class="state-map-layout">
+      <div id="state-map" class="state-map-svg"></div>
+      <div class="state-map-legend" id="state-map-legend"></div>
     </div>
-    <div class="story-chart">
-      <canvas id="chart-acres"></canvas>
-    </div>
+    <p id="state-map-note" class="small-note center" style="max-width:720px;margin:0.8rem auto 0"></p>
   </section>
 
-  <!-- SECTION 3: big fire case studies -->
-  <section id="section-cases" class="story-section-full">
+  <!-- SECTION 2.5: big fire case studies -->
+  <section id="section-cases" class="story-section-full reveal">
     <p class="kicker center">03 &middot; When it goes wrong</p>
     <h2 class="center">A few fires that changed everything</h2>
     <p class="center sub">Acreage isn't the only measure of a disaster. Some of the most destructive U.S. wildfires were small by area but catastrophic in human and economic cost.</p>
     <div id="case-cards" class="case-grid"></div>
   </section>
 
-  <!-- SECTION 4: interactive map -->
-  <section id="section-map" class="story-section-full map-section">
-    <p class="kicker center">04 &middot; Explore risk near you</p>
+  <!-- SECTION 2.6: why machine learning -->
+  <section id="section-why-ml" class="story-section-full reveal">
+    <p class="kicker center">04 &middot; Why machine learning</p>
+    <h2 class="center">What do you actually gain from a machine-learning model here?</h2>
+    <p class="center sub">
+      Wildfire risk isn't evenly spread across time or space, but the signal
+      that predicts it &mdash; a dry spell colliding with high wind, a cluster
+      of recent satellite detections, a cell near dense development &mdash;
+      is buried in dozens of noisy, correlated variables that shift every day.
+      A model's job is to learn how those variables combine to raise or lower
+      risk directly from real historical outcomes, instead of relying on a
+      handful of rules a person picked in advance.
+    </p>
+
+    <div class="variable-explainer" id="why-ml-cards">
+      <div class="variable-explainer-card">
+        <span class="ve-icon">&#129513;</span>
+        <strong>Weighs dozens of signals at once</strong>
+        <p>Recent fire activity at four time lags, real fire-weather variables (temperature, humidity, wind, fuel moisture, energy release), population and road density, season, and location &mdash; combined nonlinearly, for every grid cell, every day. No fixed rule set or human analyst reviews that many interacting variables consistently at national scale.</p>
+      </div>
+      <div class="variable-explainer-card">
+        <span class="ve-icon">&#127919;</span>
+        <strong>Turns a haystack into a watchlist</strong>
+        <p>New ignitions are rare &mdash; well under 1% of grid-cell-days. Ranking cells by relative risk concentrates limited attention on the small slice most likely to ignite next, rather than treating every location as equally worth watching.</p>
+      </div>
+      <div class="variable-explainer-card">
+        <span class="ve-icon">&#128202;</span>
+        <strong>Gives a real, tunable probability</strong>
+        <p>Because the model is calibrated, its output reads as an actual probability, not just a yes/no flag &mdash; so you can choose your own tradeoff between catching more real ignitions and watching fewer places, a dial a fixed rule can't offer.</p>
+      </div>
+      <div class="variable-explainer-card">
+        <span class="ve-icon">&#128260;</span>
+        <strong>Updates daily, not once a season</strong>
+        <p>Traditional seasonal outlooks are issued monthly for a whole region at once. This kind of model rescoring happens for every cell, every day, the moment new weather and satellite data lands &mdash; a rolling forecast instead of a static snapshot.</p>
+      </div>
+      <div class="variable-explainer-card">
+        <span class="ve-icon">&#128269;</span>
+        <strong>Tests its own assumptions</strong>
+        <p>A coordinate-ablation test (below) measures how much predictive skill comes from location and season alone versus real fire-weather and activity signals &mdash; machine-verified evidence that weather and recent fire history carry real, independent information.</p>
+      </div>
+    </div>
+
+    <div class="kpi-grid" id="why-ml-kpis"></div>
+    <p class="callout" id="why-ml-callout" style="margin-top:1rem"></p>
+    <p class="callout" style="margin-top:0.6rem">
+      This is the same reasoning behind the address-lookup map later on this
+      page: instead of one seasonal severity rating for an entire state, it
+      returns a live, cell-specific, date-specific probability, recomputed
+      the moment new weather or satellite data comes in. See the full,
+      honestly-reported performance numbers on the
+      <a href="methodology.html">Methodology page</a>.
+    </p>
+  </section>
+
+  <!-- SECTION 5: interactive map -->
+  <section id="section-map" class="story-section-full map-section reveal">
+    <p class="kicker center">05 &middot; Explore risk near you</p>
     <h2 class="center">What's the wildfire risk at your address?</h2>
+    <span class="data-tag demo center" style="display:block;width:fit-content;margin:0 auto 0.8rem">Site-demo model</span>
     <p class="center sub">
       Type a U.S. address and pick a date in 2026. For dates on or before
       <strong id="cutoff-date-label">&ndash;</strong> we show what our data
-      actually recorded. For later dates, a random-forest model (trained on
-      this year's satellite detections, incident reports, and weather) predicts
-      the risk.
+      actually recorded. For later dates, a dense 0.25&deg; grid random-forest
+      surrogate (trained the same way as the real project model, but on
+      readable 2026-only data in this environment) predicts the risk, using
+      the <strong>same discrete risk bands</strong> as the real model below.
     </p>
+
+    <div class="risk-legend" id="risk-legend"></div>
 
     <div class="map-controls">
       <input id="address-input" type="text" placeholder="e.g. 123 Main St, Paradise, CA (or lat, lon)" />
-      <input id="date-input" type="date" min="2026-01-01" max="2026-12-31" value="2026-07-04" />
+      <input id="date-input" type="date" min="2026-01-01" max="2026-12-31" value="2026-08-01" />
       <button id="lookup-btn">Check risk</button>
     </div>
     <p id="lookup-status" class="lookup-status"></p>
@@ -94,72 +178,24 @@
     <div class="map-layout">
       <div id="map" class="map-canvas"></div>
       <div id="result-panel" class="result-panel">
-        <p class="result-placeholder">Search an address above to see the risk probability, likely causes, and prevention steps for the ~1km area around it.</p>
+        <p class="result-placeholder">Search an address above to see the risk band, likely causes, and prevention steps for the ~0.25&deg; (roughly 17-mile) grid cell around it.</p>
       </div>
     </div>
-  </section>
-
-  <!-- SECTION 5: SHAP feature importance -->
-  <section id="section-shap" class="story-section-full">
-    <p class="kicker center">05 &middot; Inside the model</p>
-    <h2 class="center">What actually drives the risk score?</h2>
-    <p class="center sub">
-      We used SHAP-style Shapley-value attribution to ask, for the random forest's
-      predicted fire probability: how much did each input push the prediction up
-      or down, on average, across a held-out sample of days? Bars point right
-      (crimson) when a feature tends to push predicted risk <em>up</em>, and left
-      (green) when it tends to push risk <em>down</em>.
-    </p>
-    <div id="shap-cards" class="variable-explainer"></div>
-    <div class="chart-panel">
-      <h4>Mean |SHAP| value per feature (held-out sample)</h4>
-      <canvas id="chart-shap" style="max-height:420px"></canvas>
-    </div>
-    <p id="shap-note" class="callout" style="margin-top:1rem"></p>
-  </section>
-
-  <!-- SECTION 6: model performance -->
-  <section id="section-performance" class="story-section-full">
-    <p class="kicker center">06 &middot; How good is the model?</p>
-    <h2 class="center">Model performance, honestly</h2>
-    <p class="center sub">
-      Evaluated on a held-out slice of later 2026 dates the model never trained on
-      (a time-based split, not a random one, so it can't "peek" at the future).
-    </p>
-    <div id="kpi-cards" class="kpi-grid"></div>
-    <div class="chart-grid">
-      <div class="chart-panel">
-        <h4>ROC curve (fire-risk model)</h4>
-        <canvas id="chart-roc"></canvas>
-      </div>
-      <div class="chart-panel">
-        <h4>Calibration: predicted vs. observed rate</h4>
-        <canvas id="chart-calibration"></canvas>
-      </div>
-    </div>
-    <div class="chart-grid">
-      <div class="chart-panel">
-        <h4>Confusion matrix at 0.35 decision threshold</h4>
-        <table class="confusion-table" id="confusion-table"></table>
-      </div>
-      <div class="chart-panel">
-        <h4>Fire-scale model &mdash; accuracy by class</h4>
-        <table class="level-table" id="level-table"></table>
-      </div>
-    </div>
-    <div id="performance-takeaway" class="takeaway-box"></div>
   </section>
 
 </main>
 
 <footer class="site-footer">
   <p>
-    Built from the PTA wildfire-forecast notebook: NASA MODIS/FIRMS satellite
-    detections, InFORM/IRWIN incident reports, and daily weather, all for 2026.
-    National trend charts and case studies use public NIFC statistics and
-    public reporting (see per-section sources). This is a research/demo tool,
-    not an official fire warning system &mdash; for active incidents and
-    evacuation orders always check
+    Built from the PTA wildfire-forecast project: NASA MODIS/FIRMS satellite
+    detections (2020&ndash;2026), GridMET fire-weather variables, human
+    activity data (population, roads, fire-station distance), and NIFC annual
+    statistics. See the <a href="methodology.html">Methodology page</a> for the
+    real project's hist-gradient-boosting model, evaluated with
+    spatial/temporal holdouts. The live map above uses a site-demo surrogate
+    trained on 2026-only data readable in this build environment. This is a
+    research/demo tool, not an official fire warning system &mdash; for active
+    incidents and evacuation orders always check
     <a href="https://www.fire.ca.gov/incidents" target="_blank" rel="noopener">CAL FIRE</a>,
     <a href="https://inciweb.wildfire.gov/" target="_blank" rel="noopener">InciWeb</a>,
     or your local emergency services.
@@ -168,7 +204,15 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <script src="js/forest.js"></script>
 <script src="js/app.js"></script>
+<script>
+main().catch((e) => {
+  console.error(e);
+  document.body.insertAdjacentHTML('afterbegin',
+    `<div style="background:#e63946;color:#fff;padding:1rem;text-align:center">Failed to load site data: ${e.message}</div>`);
+});
+</script>
 </body>
 </html>

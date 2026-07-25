@@ -1,8 +1,12 @@
-// Client-side re-implementation of the PTA random-forest wildfire model.
-// The trees themselves were trained in Python (see /site_build scripts) on
-// real 2026 MODIS + incident + weather data, then exported as plain JSON so
-// they can run directly in the browser -- no server, no API key needed for
-// this part.
+// Client-side re-implementation of the site-demo wildfire risk model (v2).
+// Trained in Python (build/train_model_v2.py) on a dense CONUS 0.25-degree
+// grid using real 2026 FIRMS satellite fire history, real human-activity
+// features (population, roads, fire-station distance), and a 2026 weather
+// proxy, with the same "new ignition after 3+ quiet days" target definition
+// as the real project model. Exported as plain JSON so it runs directly in
+// the browser -- no server, no API key. This is the SITE-DEMO surrogate; the
+// site's "Model Analysis" section documents the REAL project model's results
+// separately (those come from precomputed artifacts, not this JS model).
 
 /** Walk one decision tree. `node` is {f, t, l, r} for splits or {p:[...]} for leaves. */
 function forestTreePredict(node, features) {
@@ -25,25 +29,17 @@ function forestPredictProba(forestJson, features) {
   return acc.map((x) => x / forestJson.trees.length);
 }
 
-function forestPredictClass(forestJson, features) {
-  const proba = forestPredictProba(forestJson, features);
-  let bestIdx = 0;
-  for (let i = 1; i < proba.length; i++) if (proba[i] > proba[bestIdx]) bestIdx = i;
-  return { label: forestJson.classes[bestIdx], proba };
-}
-
 function dayOfYearUTC(date) {
   const start = Date.UTC(date.getUTCFullYear(), 0, 1);
   return Math.floor((date.getTime() - start) / 86400000) + 1;
 }
 
 /**
- * Build the exact feature vector the Python model expects, for an arbitrary
- * FUTURE 2026 date at a given grid cell. Because no ground truth exists past
- * the cutoff date, this assumes a "no further fire activity" baseline scenario
- * for the fire/case lag features (mirrors how the notebook's next-day model
- * would see a quiet run of days), and estimates weather from a day-of-year
- * seasonal fit (climatology) plus that cell's recent observed anomaly.
+ * Build the exact feature vector the v2 Python model expects, for an
+ * arbitrary FUTURE date at a given dense grid cell. Past the data cutoff, we
+ * assume a "no new observed activity" baseline for the fire-history lag
+ * features (a quiet-days scenario), and estimate weather from a day-of-year
+ * seasonal climatology fit plus that cell's recent observed anomaly.
  */
 function buildFutureFeatureVector(featureCols, cell, targetDateStr, cutoffDateStr, climatology, colMedians) {
   const targetDate = new Date(targetDateStr + 'T00:00:00Z');
@@ -66,30 +62,25 @@ function buildFutureFeatureVector(featureCols, cell, targetDateStr, cutoffDateSt
   }
 
   const values = {
-    lat_bin: cell.lat_bin,
-    lon_bin: cell.lon_bin,
+    lat: cell.lat_bin + 0.125,
+    lon: cell.lon_bin + 0.125,
     month,
     dayofyear: doy,
     sin_doy: sinDoy,
     cos_doy: cosDoy,
-    satellite_fire_count_lag_1d: lagSum(cell.fire_count_14, 1),
-    total_frp_lag_1d: lagSum(cell.total_frp_14, 1),
-    satellite_fire_count_lag_3d: lagSum(cell.fire_count_14, 3),
-    total_frp_lag_3d: lagSum(cell.total_frp_14, 3),
-    satellite_fire_count_lag_7d: lagSum(cell.fire_count_14, 7),
-    total_frp_lag_7d: lagSum(cell.total_frp_14, 7),
-    satellite_fire_count_lag_14d: lagSum(cell.fire_count_14, 14),
-    total_frp_lag_14d: lagSum(cell.total_frp_14, 14),
-    case_count_lag_1d: lagSum(cell.case_count_14, 1),
-    total_case_acres_lag_1d: lagSum(cell.total_case_acres_14, 1),
-    case_count_lag_3d: lagSum(cell.case_count_14, 3),
-    total_case_acres_lag_3d: lagSum(cell.total_case_acres_14, 3),
-    case_count_lag_7d: lagSum(cell.case_count_14, 7),
-    total_case_acres_lag_7d: lagSum(cell.total_case_acres_14, 7),
-    case_count_lag_14d: lagSum(cell.case_count_14, 14),
-    total_case_acres_lag_14d: lagSum(cell.total_case_acres_14, 14),
+    fire_count_lag_1d: lagSum(cell.fire_count_14, 1),
+    frp_lag_1d: lagSum(cell.total_frp_14, 1),
+    fire_count_lag_3d: lagSum(cell.fire_count_14, 3),
+    frp_lag_3d: lagSum(cell.total_frp_14, 3),
+    fire_count_lag_7d: lagSum(cell.fire_count_14, 7),
+    frp_lag_7d: lagSum(cell.total_frp_14, 7),
+    fire_count_lag_14d: lagSum(cell.fire_count_14, 14),
+    frp_lag_14d: lagSum(cell.total_frp_14, 14),
     days_since_satellite_fire: Math.min(999, cell.days_since_satellite_fire_cutoff + Math.max(daysAhead, 0)),
-    days_since_reported_case: Math.min(999, cell.days_since_reported_case_cutoff + Math.max(daysAhead, 0)),
+    population_per_sq_km: cell.population_per_sq_km,
+    primary_road_km_per_100_sq_km: cell.primary_road_km_per_100_sq_km,
+    log_population_density: cell.log_population_density,
+    distance_to_fire_station_km: cell.distance_to_fire_station_km,
   };
 
   for (const col in climatology) {
@@ -100,4 +91,36 @@ function buildFutureFeatureVector(featureCols, cell, targetDateStr, cutoffDateSt
   }
 
   return featureCols.map((name, i) => (values[name] !== undefined && Number.isFinite(values[name]) ? values[name] : colMedians[i]));
+}
+
+/**
+ * The forest is trained with "balanced_subsample"-style bootstrapping: every
+ * tree draws an equal number of positive and negative rows (a 50/50 prior),
+ * regardless of the real class balance. That makes raw predict_proba output
+ * a probability *under the artificial balanced prior*, not the true
+ * unconditional probability -- so it can't be compared directly against
+ * calibrated real-world risk bands. This applies the standard prior
+ * correction (Bayes' rule rescaling from the training prior back to the true
+ * prior, the same idea used in case-control / rare-events logistic
+ * regression correction) to rescale it back down to a realistic probability
+ * before we bucket it into the real model's risk bands.
+ */
+function calibrateBalancedProba(pRaw, truePrior, trainPrior) {
+  const w1 = truePrior / trainPrior;
+  const w0 = (1 - truePrior) / (1 - trainPrior);
+  const num = pRaw * w1;
+  const den = num + (1 - pRaw) * w0;
+  return den > 0 ? num / den : pRaw;
+}
+
+/** Map a site-demo probability onto the REAL model's risk bands (from the
+ * project's model card), so the live map uses the same discrete, honestly-
+ * calibrated language as the Model Analysis section, rather than an
+ * arbitrary 0-1 scale. */
+function riskBandFromProbability(p, bands) {
+  if (p <= bands.typical_upper) return { label: 'Typical', id: 0 };
+  if (p <= bands.moderate_upper) return { label: 'Moderate', id: 1 };
+  if (p <= bands.elevated_upper) return { label: 'Elevated', id: 2 };
+  if (p <= bands.high_upper) return { label: 'High', id: 3 };
+  return { label: 'Extreme', id: 4 };
 }

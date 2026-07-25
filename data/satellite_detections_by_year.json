@@ -1,0 +1,58 @@
+[
+ {
+  "year": 2020,
+  "raw_detections": 164409,
+  "conus_detections": 164409,
+  "conus_veg_confident_detections": 148989,
+  "unique_days": 366,
+  "total_frp": 15610202.799999999
+ },
+ {
+  "year": 2021,
+  "raw_detections": 180859,
+  "conus_detections": 180859,
+  "conus_veg_confident_detections": 163492,
+  "unique_days": 365,
+  "total_frp": 14721668.300000003
+ },
+ {
+  "year": 2022,
+  "raw_detections": 115868,
+  "conus_detections": 115868,
+  "conus_veg_confident_detections": 103813,
+  "unique_days": 365,
+  "total_frp": 6775507.3999999985
+ },
+ {
+  "year": 2023,
+  "raw_detections": 115179,
+  "conus_detections": 115179,
+  "conus_veg_confident_detections": 102583,
+  "unique_days": 365,
+  "total_frp": 5568939.7
+ },
+ {
+  "year": 2024,
+  "raw_detections": 129919,
+  "conus_detections": 129919,
+  "conus_veg_confident_detections": 116987,
+  "unique_days": 366,
+  "total_frp": 8258696.9
+ },
+ {
+  "year": 2025,
+  "raw_detections": 114127,
+  "conus_detections": 114127,
+  "conus_veg_confident_detections": 102358,
+  "unique_days": 365,
+  "total_frp": 6586252.500000001
+ },
+ {
+  "year": 2026,
+  "raw_detections": 63184,
+  "conus_detections": 63184,
+  "conus_veg_confident_detections": 58386,
+  "unique_days": 203,
+  "total_frp": 3749492.48
+ }
+]
