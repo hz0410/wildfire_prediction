@@ -345,15 +345,20 @@ function setMapLocation(lat, lon) {
 }
 
 async function geocodeAddress(address) {
-  const url = 'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress' +
-    '?address=' + encodeURIComponent(address) + '&benchmark=Public_AR_Current&format=json';
-  const res = await fetch(url);
+  // The US Census geocoder (geocoding.geo.census.gov) doesn't send CORS
+  // headers, so it can't be called directly from browser JS on a static
+  // site — every request fails with an opaque "failed to fetch" error.
+  // Nominatim (OpenStreetMap's public geocoder, the same data source as
+  // the Leaflet basemap already used on this page) does support direct
+  // browser fetches, so it's used here instead.
+  const url = 'https://nominatim.openstreetmap.org/search' +
+    '?format=json&limit=1&addressdetails=0&countrycodes=us&q=' + encodeURIComponent(address);
+  const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
   if (!res.ok) throw new Error('Geocoder request failed');
   const json = await res.json();
-  const matches = json.result && json.result.addressMatches;
-  if (!matches || matches.length === 0) return null;
-  const m = matches[0];
-  return { lat: m.coordinates.y, lon: m.coordinates.x, matchedAddress: m.matchedAddress };
+  if (!json || json.length === 0) return null;
+  const m = json[0];
+  return { lat: parseFloat(m.lat), lon: parseFloat(m.lon), matchedAddress: m.display_name };
 }
 
 function nearestCell(lat, lon) {
@@ -442,7 +447,7 @@ async function handleLookup() {
     try {
       geo = await geocodeAddress(address);
     } catch (e) {
-      statusEl.textContent = 'Could not reach the geocoding service (US Census geocoder). If this persists, try entering coordinates directly as "lat, lon".';
+      statusEl.textContent = 'Could not reach the geocoding service (OpenStreetMap/Nominatim). If this persists, try entering coordinates directly as "lat, lon".';
       return;
     }
   }
