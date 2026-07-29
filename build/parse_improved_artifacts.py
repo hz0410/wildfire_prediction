@@ -53,6 +53,39 @@ for r in bootstrap_rows:
         'upper_95': float(r['upper_95']),
     }
 
+# ---------------------------------------------------------------------------
+# Economic-loss (estimated dollar damage) model: separate consequence model,
+# same hurdle-model artifacts the notebook's Section 16 produces. Includes
+# the baseline_state_average comparison rows and the dollar-space metric fix
+# (RMSE_usd_all) added after the original combined log1p metrics turned out
+# to be dominated by the ~55% exact-zero-damage rows.
+# ---------------------------------------------------------------------------
+economic_card = json.loads((SRC / 'economic_loss_model_card.json').read_text())
+
+economic_metrics_rows = read_csv_rows(SRC / 'economic_loss_model_metrics.csv')
+econ_numeric_keys = [k for k in economic_metrics_rows[0] if k not in ('model', 'split')]
+economic_metrics_rows = [to_float(r, econ_numeric_keys) for r in economic_metrics_rows]
+for r in economic_metrics_rows:
+    r['rows'] = int(r['rows'])
+    r['positive_rows'] = int(r['positive_rows'])
+    for k in econ_numeric_keys:
+        if r.get(k) == '':
+            r[k] = None
+
+economic_data_audit = read_csv_rows(SRC / 'economic_loss_data_audit.csv')
+economic_data_audit = [
+    to_float(r, [
+        'wildfire_records', 'explicit_damage_entries', 'positive_damage_records',
+        'total_reported_damage_usd', 'median_positive_damage_usd',
+    ])
+    for r in economic_data_audit
+]
+for r in economic_data_audit:
+    r['YEAR'] = int(r['YEAR'])
+    r['wildfire_records'] = int(r['wildfire_records'])
+    r['explicit_damage_entries'] = int(r['explicit_damage_entries'])
+    r['positive_damage_records'] = int(r['positive_damage_records'])
+
 payload = {
     'model_card': model_card,
     'metrics_by_split': metrics_rows,
@@ -61,9 +94,18 @@ payload = {
     'coordinate_ablation': ablation,
     'candidate_results': candidate_results,
     'bootstrap_ci': bootstrap_ci,
+    'economic_model': {
+        'model_card': economic_card,
+        'metrics_by_split': economic_metrics_rows,
+        'data_audit': economic_data_audit,
+    },
 }
 (OUT / 'improved_model_analysis.json').write_text(json.dumps(payload, indent=1))
 print('Wrote improved_model_analysis.json')
 print('Top permutation feature:', perm_importance[0])
 print('Top SHAP feature:', shap_importance[0])
 print('Metrics splits:', [r['split'] for r in metrics_rows])
+print('Candidate count (incl. full_trimmed):', len(candidate_results))
+print('Economic model test metrics:', [
+    r for r in economic_metrics_rows if r['split'] == 'test'
+])

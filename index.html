@@ -70,17 +70,20 @@
   <!-- SECTION 1: fires per year, state by state -->
   <section id="section-fires" class="story-section-full reveal">
     <p class="kicker center">02 &middot; The national picture, state by state</p>
-    <h2 class="center">How many wildfires does each state report, year by year?</h2>
+    <h2 class="center">How many wildfires does each state report &mdash; and what did they cost?</h2>
     <p class="center sub">
       Since 1983, the National Interagency Coordination Center has tracked
       every wildfire reported by federal, state, and local agencies nationally
-      &mdash; rarely fewer than 45,000 fires a year, sometimes over 90,000. The
-      map below breaks that down by state, using NIFC's own state-by-state
-      report tables for 2020&ndash;2025. Darker shading means more fires
-      reported that year.
+      &mdash; rarely fewer than 45,000 fires a year, sometimes over 90,000.
+      Frequency is only half the picture: NOAA's Storm Events database
+      separately tracks reported property and crop damage for individual
+      wildfire incidents, state by state. Switch views below to see either
+      layer for 2020&ndash;2026. Darker shading means more of that year's
+      selected metric.
     </p>
     <p id="fires-stat-callout" class="callout center" style="margin:0 auto 1rem;max-width:680px"></p>
 
+    <div class="state-map-controls" id="state-map-metric-buttons"></div>
     <div class="state-map-controls" id="state-map-year-buttons"></div>
 
     <div class="state-map-layout">
@@ -98,57 +101,69 @@
     <div id="case-cards" class="case-grid"></div>
   </section>
 
-  <!-- SECTION 2.6: why machine learning -->
-  <section id="section-why-ml" class="story-section-full reveal">
-    <p class="kicker center">04 &middot; Why machine learning</p>
-    <h2 class="center">What do you actually gain from a machine-learning model here?</h2>
+  <!-- SECTION 4.5: who this helps, operational workflow -->
+  <section id="section-personas" class="story-section-full reveal">
+    <p class="kicker center">04 &middot; Who this helps, and how</p>
+    <h2 class="center">A probability is only useful if it triggers a decision</h2>
     <p class="center sub">
-      Wildfire risk isn't evenly spread across time or space, but the signal
-      that predicts it &mdash; a dry spell colliding with high wind, a cluster
-      of recent satellite detections, a cell near dense development &mdash;
-      is buried in dozens of noisy, correlated variables that shift every day.
-      A model's job is to learn how those variables combine to raise or lower
-      risk directly from real historical outcomes, instead of relying on a
-      handful of rules a person picked in advance.
+      "61% risk" means nothing on its own. It matters only alongside a specific
+      person, a specific action, and a specific deadline. Four groups of users
+      and the concrete decisions this kind of daily, cell-level probability is
+      built to inform:
     </p>
 
-    <div class="variable-explainer" id="why-ml-cards">
+    <div class="variable-explainer" id="persona-cards">
       <div class="variable-explainer-card">
-        <span class="ve-icon">&#129513;</span>
-        <strong>Weighs dozens of signals at once</strong>
-        <p>Recent fire activity at four time lags, real fire-weather variables (temperature, humidity, wind, fuel moisture, energy release), population and road density, season, and location &mdash; combined nonlinearly, for every grid cell, every day. No fixed rule set or human analyst reviews that many interacting variables consistently at national scale.</p>
+        <span class="ve-icon">&#128737;&#65039;</span>
+        <strong>Emergency management</strong>
+        <p>Helps incident commanders and dispatch decide where to pre-position engines, crews, and containment resources before a red-flag day, using the ranked cell list rather than a single regional outlook. Missing a real ignition is far costlier than a wasted patrol, so this use case leans on the wide-net <b>80%-recall</b> threshold.</p>
       </div>
       <div class="variable-explainer-card">
-        <span class="ve-icon">&#127919;</span>
-        <strong>Turns a haystack into a watchlist</strong>
-        <p>New ignitions are rare &mdash; well under 1% of grid-cell-days. Ranking cells by relative risk concentrates limited attention on the small slice most likely to ignite next, rather than treating every location as equally worth watching.</p>
+        <span class="ve-icon">&#9889;</span>
+        <strong>Utilities &amp; grid operators</strong>
+        <p>Helps power-grid operators decide where to consider targeted Public Safety Power Shutoffs (PSPS) ahead of high-wind events, weighing outage costs for residents against ignition risk from energized lines in the highest-risk cells. A tighter, <b>5%-alert-budget</b> threshold limits shutoffs to where the risk-to-cost tradeoff is clearest.</p>
       </div>
       <div class="variable-explainer-card">
-        <span class="ve-icon">&#128202;</span>
-        <strong>Gives a real, tunable probability</strong>
-        <p>Because the model is calibrated, its output reads as an actual probability, not just a yes/no flag &mdash; so you can choose your own tradeoff between catching more real ignitions and watching fewer places, a dial a fixed rule can't offer.</p>
+        <span class="ve-icon">&#128188;</span>
+        <strong>Insurance &amp; risk underwriting</strong>
+        <p>Enables dynamic, daily risk signals for high-exposure property portfolios &mdash; a rolling input to underwriting and concentration-risk review, instead of one static wildfire-zone rating reassessed once a year.</p>
       </div>
       <div class="variable-explainer-card">
-        <span class="ve-icon">&#128260;</span>
-        <strong>Updates daily, not once a season</strong>
-        <p>Traditional seasonal outlooks are issued monthly for a whole region at once. This kind of model rescoring happens for every cell, every day, the moment new weather and satellite data lands &mdash; a rolling forecast instead of a static snapshot.</p>
-      </div>
-      <div class="variable-explainer-card">
-        <span class="ve-icon">&#128269;</span>
-        <strong>Tests its own assumptions</strong>
-        <p>A coordinate-ablation test (below) measures how much predictive skill comes from location and season alone versus real fire-weather and activity signals &mdash; machine-verified evidence that weather and recent fire history carry real, independent information.</p>
+        <span class="ve-icon">&#127968;</span>
+        <strong>Residents &amp; communities</strong>
+        <p>Turns the same probability into a plain-language risk band and a prevention checklist for one address &mdash; informing a personal decision (clear brush, review an evacuation plan, watch for red-flag warnings) rather than a raw number. Try it in the lookup tool below.</p>
       </div>
     </div>
 
-    <div class="kpi-grid" id="why-ml-kpis"></div>
-    <p class="callout" id="why-ml-callout" style="margin-top:1rem"></p>
     <p class="callout" style="margin-top:0.6rem">
-      This is the same reasoning behind the address-lookup map later on this
-      page: instead of one seasonal severity rating for an entire state, it
-      returns a live, cell-specific, date-specific probability, recomputed
-      the moment new weather or satellite data comes in. See the full,
-      honestly-reported performance numbers on the
-      <a href="methodology.html">Methodology page</a>.
+      These threshold choices aren't just modeling details &mdash; missing a real
+      ignition and raising a false alarm carry very different real-world costs
+      depending on who's using the number. See the full cost-of-error breakdown
+      on the <a href="methodology.html#section-results">Methodology page</a>.
+    </p>
+
+    <h3 style="text-align:center;margin-top:2.4rem">What's the economic stake in catching these earlier?</h3>
+    <p class="center sub" style="max-width:760px">
+      NOAA's own incident-level damage reports put U.S. wildfire property and
+      crop losses at roughly <b id="econ-impact-avg-loss">&ndash;</b> a year on
+      average, 2020&ndash;2025 (see the economic-loss map in Section 02). Here's
+      what the real model's own held-out recall numbers say about how much of
+      that sits inside its advance-warning net, at the same two operating
+      points as the personas above.
+    </p>
+    <div class="kpi-grid" id="econ-impact-kpis"></div>
+    <p class="callout" id="econ-impact-callout" style="margin-top:1rem"></p>
+    <p class="callout" style="margin-top:0.6rem">
+      <b>This is a coverage estimate, not a savings guarantee.</b> It assumes
+      the model's recall on satellite-detected ignition candidates carries
+      over to the separate population of NOAA dollar-loss incidents &mdash;
+      an extrapolation this project has not directly validated, since the two
+      datasets are built independently and were never joined fire-by-fire.
+      Being flagged a day in advance is also not the same as being prevented:
+      how much loss that warning actually avoids depends entirely on how fast
+      and effectively responders act on it, which this project doesn't model.
+      Treat the numbers above as "how much money sits inside the net," not
+      "how much money the model has saved."
     </p>
   </section>
 

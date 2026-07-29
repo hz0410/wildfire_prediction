@@ -381,6 +381,15 @@
    "Brier": 0.006325200219821288
   },
   {
+   "feature_strategy": "full_trimmed",
+   "candidate": "hist_gradient_boosting__full_trimmed",
+   "model": "hist_gradient_boosting",
+   "calibration": "sigmoid",
+   "PR_AUC": 0.06721224443490899,
+   "ROC_AUC": 0.860154247496012,
+   "Brier": 0.006325200219821288
+  },
+  {
    "feature_strategy": "no_coordinates",
    "candidate": "hist_gradient_boosting__no_coordinates",
    "model": "hist_gradient_boosting",
@@ -410,6 +419,24 @@
    "Brier": 0.006325200219821288
   },
   {
+   "candidate": "hist_gradient_boosting__full_trimmed",
+   "model": "hist_gradient_boosting",
+   "feature_strategy": "full_trimmed",
+   "calibration": "sigmoid",
+   "PR_AUC": 0.06721224443490899,
+   "ROC_AUC": 0.860154247496012,
+   "Brier": 0.006325200219821288
+  },
+  {
+   "candidate": "extra_trees__full_trimmed",
+   "model": "extra_trees",
+   "feature_strategy": "full_trimmed",
+   "calibration": "sigmoid",
+   "PR_AUC": 0.06621496774148444,
+   "ROC_AUC": 0.8561642770367592,
+   "Brier": 0.006502387878253283
+  },
+  {
    "candidate": "extra_trees__full",
    "model": "extra_trees",
    "feature_strategy": "full",
@@ -428,13 +455,31 @@
    "Brier": 0.006308635188196653
   },
   {
+   "candidate": "hist_gradient_boosting__full_trimmed",
+   "model": "hist_gradient_boosting",
+   "feature_strategy": "full_trimmed",
+   "calibration": "isotonic",
+   "PR_AUC": 0.06506296456834017,
+   "ROC_AUC": 0.860538769745806,
+   "Brier": 0.006308635188196653
+  },
+  {
    "candidate": "extra_trees__full",
    "model": "extra_trees",
    "feature_strategy": "full",
    "calibration": "isotonic",
-   "PR_AUC": 0.06494380474928951,
-   "ROC_AUC": 0.8582867744689504,
+   "PR_AUC": 0.06494328225496926,
+   "ROC_AUC": 0.8582868312258845,
    "Brier": 0.006316813808553346
+  },
+  {
+   "candidate": "extra_trees__full_trimmed",
+   "model": "extra_trees",
+   "feature_strategy": "full_trimmed",
+   "calibration": "isotonic",
+   "PR_AUC": 0.06433676759500477,
+   "ROC_AUC": 0.856605213523774,
+   "Brier": 0.0063176392978570965
   },
   {
    "candidate": "random_forest__full",
@@ -444,6 +489,15 @@
    "PR_AUC": 0.05714813357463455,
    "ROC_AUC": 0.8555375357156851,
    "Brier": 0.0065134983119870815
+  },
+  {
+   "candidate": "random_forest__full_trimmed",
+   "model": "random_forest",
+   "feature_strategy": "full_trimmed",
+   "calibration": "sigmoid",
+   "PR_AUC": 0.05691988253860676,
+   "ROC_AUC": 0.8520614155353967,
+   "Brier": 0.006509327369433848
   },
   {
    "candidate": "hist_gradient_boosting__no_coordinates",
@@ -459,9 +513,18 @@
    "model": "random_forest",
    "feature_strategy": "full",
    "calibration": "isotonic",
-   "PR_AUC": 0.05574337291853532,
-   "ROC_AUC": 0.8559224477103738,
+   "PR_AUC": 0.05573964684148426,
+   "ROC_AUC": 0.8559238219316827,
    "Brier": 0.006348570792838073
+  },
+  {
+   "candidate": "random_forest__full_trimmed",
+   "model": "random_forest",
+   "feature_strategy": "full_trimmed",
+   "calibration": "isotonic",
+   "PR_AUC": 0.05565657629558583,
+   "ROC_AUC": 0.8524930333145149,
+   "Brier": 0.006348777879155551
   },
   {
    "candidate": "hist_gradient_boosting__no_coordinates",
@@ -486,9 +549,9 @@
    "model": "extra_trees",
    "feature_strategy": "no_coordinates",
    "calibration": "isotonic",
-   "PR_AUC": 0.04613608048714887,
-   "ROC_AUC": 0.8277895343186725,
-   "Brier": 0.006390117790403016
+   "PR_AUC": 0.04613622264882651,
+   "ROC_AUC": 0.8277863492289032,
+   "Brier": 0.006390117790403017
   },
   {
    "candidate": "random_forest__no_coordinates",
@@ -513,8 +576,8 @@
    "model": "random_forest",
    "feature_strategy": "no_coordinates",
    "calibration": "isotonic",
-   "PR_AUC": 0.04360212587385008,
-   "ROC_AUC": 0.831682942830757,
+   "PR_AUC": 0.04360383788084415,
+   "ROC_AUC": 0.8316881058826517,
    "Brier": 0.006396522337849356
   },
   {
@@ -540,8 +603,8 @@
    "model": "extra_trees",
    "feature_strategy": "conditions_only",
    "calibration": "isotonic",
-   "PR_AUC": 0.041717263635686716,
-   "ROC_AUC": 0.8023311753997001,
+   "PR_AUC": 0.0417220572852695,
+   "ROC_AUC": 0.8023288801780222,
    "Brier": 0.006408212350172342
   },
   {
@@ -558,8 +621,8 @@
    "model": "random_forest",
    "feature_strategy": "conditions_only",
    "calibration": "isotonic",
-   "PR_AUC": 0.03837142529342978,
-   "ROC_AUC": 0.8061679737672517,
+   "PR_AUC": 0.03835679186035972,
+   "ROC_AUC": 0.8061658845897272,
    "Brier": 0.006419100527601742
   }
  ],
@@ -579,5 +642,199 @@
    "median": 0.006628845527756143,
    "upper_95": 0.007124976866403042
   }
+ },
+ "economic_model": {
+  "model_card": {
+   "feature_cols": [
+    "STATE",
+    "geo_area",
+    "WFO",
+    "CZ_TYPE",
+    "sin_month",
+    "cos_month",
+    "year_index"
+   ],
+   "categorical_features": [
+    "STATE",
+    "geo_area",
+    "WFO",
+    "CZ_TYPE"
+   ],
+   "numeric_features": [
+    "sin_month",
+    "cos_month",
+    "year_index"
+   ],
+   "target": "NOAA reported property damage plus crop damage, nominal USD",
+   "training_years": [
+    2020,
+    2024
+   ],
+   "untouched_test_year": 2025,
+   "excluded_provisional_year": 2026,
+   "conditional_interval_nominal_coverage": 0.8,
+   "conditional_interval_log_radius": 3.3890892122917347,
+   "data_source": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/",
+   "random_state": 42,
+   "test_metrics": {
+    "model": "hurdle_rf_et",
+    "split": "test",
+    "rows": 322,
+    "positive_rows": 124,
+    "damage_PR_AUC": 0.7502977381578818,
+    "damage_ROC_AUC": 0.7982241772564354,
+    "median_absolute_error_usd": 155476.8969148074,
+    "mean_absolute_error_usd": 3543909.3238516566,
+    "RMSE_usd_all": 11846847.042359581,
+    "conditional_MAE_log1p": 2.5235687698278424,
+    "conditional_80pct_interval_coverage": 0.6532258064516129
+   },
+   "limitations": [
+    "NOAA damage values are estimates and may be zero or missing when loss is unquantified.",
+    "The target excludes indirect, health, ecological, suppression, and business-interruption costs.",
+    "The training sample is small and dominated by a few catastrophic events.",
+    "NOAA wildfire rows are forecast-zone records and may not correspond one-to-one with named fires.",
+    "The estimate is suitable for risk screening, not property valuation or insurance decisions.",
+    "2026 data are provisional/incomplete and are excluded from fitting."
+   ]
+  },
+  "metrics_by_split": [
+   {
+    "model": "hurdle_rf_et",
+    "split": "validation",
+    "rows": 293,
+    "positive_rows": 133,
+    "damage_PR_AUC": 0.805475288392964,
+    "damage_ROC_AUC": 0.8181390977443609,
+    "median_absolute_error_usd": 142876.22488086155,
+    "mean_absolute_error_usd": 5007741.643023166,
+    "RMSE_usd_all": 23533966.314888697,
+    "conditional_MAE_log1p": 2.1322958245212282,
+    "conditional_80pct_interval_coverage": 0.8045112781954887
+   },
+   {
+    "model": "baseline_state_average",
+    "split": "validation",
+    "rows": 293,
+    "positive_rows": 133,
+    "damage_PR_AUC": 0.6252678361517281,
+    "damage_ROC_AUC": 0.7043703007518797,
+    "median_absolute_error_usd": 83750.33269462684,
+    "mean_absolute_error_usd": 4072091.6358653572,
+    "RMSE_usd_all": 21731782.108933777,
+    "conditional_MAE_log1p": 2.23393423732533,
+    "conditional_80pct_interval_coverage": null
+   },
+   {
+    "model": "hurdle_rf_et",
+    "split": "test",
+    "rows": 322,
+    "positive_rows": 124,
+    "damage_PR_AUC": 0.7502977381578818,
+    "damage_ROC_AUC": 0.7982241772564354,
+    "median_absolute_error_usd": 155476.8969148074,
+    "mean_absolute_error_usd": 3543909.3238516566,
+    "RMSE_usd_all": 11846847.042359581,
+    "conditional_MAE_log1p": 2.5235687698278424,
+    "conditional_80pct_interval_coverage": 0.6532258064516129
+   },
+   {
+    "model": "baseline_state_average",
+    "split": "test",
+    "rows": 322,
+    "positive_rows": 124,
+    "damage_PR_AUC": 0.6080058116726512,
+    "damage_ROC_AUC": 0.7205930270446399,
+    "median_absolute_error_usd": 146062.6287065345,
+    "mean_absolute_error_usd": 3110784.0507695973,
+    "RMSE_usd_all": 10211626.38576622,
+    "conditional_MAE_log1p": 2.5081885800377726,
+    "conditional_80pct_interval_coverage": null
+   },
+   {
+    "model": "hurdle_rf_et",
+    "split": "provisional_2026",
+    "rows": 154,
+    "positive_rows": 63,
+    "damage_PR_AUC": 0.5638997414226592,
+    "damage_ROC_AUC": 0.6989359846502705,
+    "median_absolute_error_usd": 128358.97604393653,
+    "mean_absolute_error_usd": 2861095.8161357995,
+    "RMSE_usd_all": 16238722.742112493,
+    "conditional_MAE_log1p": 1.7814247134056154,
+    "conditional_80pct_interval_coverage": 0.873015873015873
+   },
+   {
+    "model": "baseline_state_average",
+    "split": "provisional_2026",
+    "rows": 154,
+    "positive_rows": 63,
+    "damage_PR_AUC": 0.48377340710138994,
+    "damage_ROC_AUC": 0.5886098028955172,
+    "median_absolute_error_usd": 63793.603059293615,
+    "mean_absolute_error_usd": 596589.058041408,
+    "RMSE_usd_all": 2278916.421667688,
+    "conditional_MAE_log1p": 1.682484109041043,
+    "conditional_80pct_interval_coverage": null
+   }
+  ],
+  "data_audit": [
+   {
+    "YEAR": 2020,
+    "wildfire_records": 413,
+    "explicit_damage_entries": 353,
+    "positive_damage_records": 38,
+    "total_reported_damage_usd": 459256000.0,
+    "median_positive_damage_usd": 475000.0
+   },
+   {
+    "YEAR": 2021,
+    "wildfire_records": 352,
+    "explicit_damage_entries": 300,
+    "positive_damage_records": 55,
+    "total_reported_damage_usd": 2095043200.0,
+    "median_positive_damage_usd": 200000.0
+   },
+   {
+    "YEAR": 2022,
+    "wildfire_records": 421,
+    "explicit_damage_entries": 358,
+    "positive_damage_records": 91,
+    "total_reported_damage_usd": 631756500.0,
+    "median_positive_damage_usd": 250000.0
+   },
+   {
+    "YEAR": 2023,
+    "wildfire_records": 297,
+    "explicit_damage_entries": 273,
+    "positive_damage_records": 124,
+    "total_reported_damage_usd": 5914158520.0,
+    "median_positive_damage_usd": 467260.0
+   },
+   {
+    "YEAR": 2024,
+    "wildfire_records": 336,
+    "explicit_damage_entries": 293,
+    "positive_damage_records": 133,
+    "total_reported_damage_usd": 1167716870.0,
+    "median_positive_damage_usd": 500000.0
+   },
+   {
+    "YEAR": 2025,
+    "wildfire_records": 350,
+    "explicit_damage_entries": 322,
+    "positive_damage_records": 124,
+    "total_reported_damage_usd": 982347110.0,
+    "median_positive_damage_usd": 1000000.0
+   },
+   {
+    "YEAR": 2026,
+    "wildfire_records": 175,
+    "explicit_damage_entries": 154,
+    "positive_damage_records": 63,
+    "total_reported_damage_usd": 78603600.0,
+    "median_positive_damage_usd": 91000.0
+   }
+  ]
  }
 }

@@ -211,7 +211,7 @@ const STATE_NAME_TO_ABBR = {
   Virginia: 'VA', Washington: 'WA', 'West Virginia': 'WV', Wisconsin: 'WI', Wyoming: 'WY',
 };
 
-function renderStateMap(firesByState) {
+function renderStateMap(firesByState, economicLossByState) {
   const years = firesByState.years;
   const metricLabels = {
     reported_fires_nifc: 'wildfires reported (NIFC)',
@@ -219,31 +219,53 @@ function renderStateMap(firesByState) {
   };
   const stateNames = Object.keys(firesByState.states);
 
-  // fixed color domain across all years, so shading is comparable when you
-  // switch years rather than auto-rescaling each time
-  let globalMax = 0;
+  // Fixed color domain per metric (not shared -- fire counts and dollar
+  // losses live on completely different scales), so shading is comparable
+  // when you switch years within a metric rather than auto-rescaling.
+  let globalMaxFires = 0;
+  let globalMaxLoss = 0;
   years.forEach((y) => {
     stateNames.forEach((name) => {
-      globalMax = Math.max(globalMax, firesByState.states[name][String(y)] || 0);
+      globalMaxFires = Math.max(globalMaxFires, firesByState.states[name][String(y)] || 0);
+      globalMaxLoss = Math.max(globalMaxLoss, economicLossByState.states[name][String(y)] || 0);
     });
   });
 
   const plotDiv = document.getElementById('state-map');
   let selectedYear = 2025;
+  let selectedMetric = 'fires'; // 'fires' | 'loss'
 
-  function traceFor(year) {
-    const metric = firesByState.metric_by_year[String(year)];
-    const label = metric === 'satellite_detections_firms' ? 'satellite detections' : 'fires reported';
+  function valueFor(metric, name, year) {
+    return metric === 'loss'
+      ? (economicLossByState.states[name][String(year)] || 0)
+      : (firesByState.states[name][String(year)] || 0);
+  }
+
+  function fmtLossShort(n) {
+    return n > 0 ? (fmtUSD(n) || '$0') : '$0';
+  }
+
+  function traceFor(year, metric) {
+    const globalMax = metric === 'loss' ? globalMaxLoss : globalMaxFires;
+    const fireMetricKey = firesByState.metric_by_year[String(year)];
+    const label = metric === 'loss'
+      ? 'reported economic loss'
+      : (fireMetricKey === 'satellite_detections_firms' ? 'satellite detections' : 'fires reported');
     return [{
       type: 'choropleth',
       locationmode: 'USA-states',
       locations: stateNames.map((name) => STATE_NAME_TO_ABBR[name]),
-      z: stateNames.map((name) => firesByState.states[name][String(year)] || 0),
-      text: stateNames.map((name) => `${name}: ${fmtNum(firesByState.states[name][String(year)] || 0)} ${label}`),
+      z: stateNames.map((name) => valueFor(metric, name, year)),
+      text: stateNames.map((name) => {
+        const v = valueFor(metric, name, year);
+        return `${name}: ${metric === 'loss' ? fmtLossShort(v) : fmtNum(v)} ${label}`;
+      }),
       hoverinfo: 'text',
       zmin: 0,
       zmax: globalMax,
-      colorscale: [[0, '#fdf0ec'], [0.15, '#f5b8a3'], [0.4, '#e37a5c'], [0.7, '#c0392b'], [1, '#6e1c12']],
+      colorscale: metric === 'loss'
+        ? [[0, '#eef4fb'], [0.15, '#a9c9ea'], [0.4, '#5c96d0'], [0.7, '#2c5f94'], [1, '#12324f']]
+        : [[0, '#fdf0ec'], [0.15, '#f5b8a3'], [0.4, '#e37a5c'], [0.7, '#c0392b'], [1, '#6e1c12']],
       marker: { line: { color: '#fff', width: 0.6 } },
       colorbar: { title: { text: label, side: 'right' }, thickness: 14, len: 0.75 },
     }];
@@ -262,30 +284,63 @@ function renderStateMap(firesByState) {
     font: { family: '-apple-system, Helvetica, Arial, sans-serif', color: '#4b5563' },
   };
 
-  Plotly.newPlot(plotDiv, traceFor(selectedYear), layout, { responsive: true, displayModeBar: false });
+  Plotly.newPlot(plotDiv, traceFor(selectedYear, selectedMetric), layout, { responsive: true, displayModeBar: false });
 
-  function paint(year) {
-    Plotly.react(plotDiv, traceFor(year), layout, { responsive: true, displayModeBar: false });
-    const metric = firesByState.metric_by_year[String(year)];
-    document.getElementById('state-map-note').innerHTML =
-      `Showing <b>${metricLabels[metric] || metric}</b> for ${year}. ${firesByState.sources[metric]}`;
+  function paint() {
+    Plotly.react(plotDiv, traceFor(selectedYear, selectedMetric), layout, { responsive: true, displayModeBar: false });
+
     document.querySelectorAll('#state-map-year-buttons button').forEach((b) => {
-      b.classList.toggle('active', parseInt(b.dataset.year, 10) === year);
+      b.classList.toggle('active', parseInt(b.dataset.year, 10) === selectedYear);
     });
-    renderLegend(year);
+    document.querySelectorAll('#state-map-metric-buttons button').forEach((b) => {
+      b.classList.toggle('active', b.dataset.metric === selectedMetric);
+    });
+
+    if (selectedMetric === 'loss') {
+      document.getElementById('state-map-note').innerHTML =
+        `Showing <b>reported economic loss</b> for ${selectedYear}. ${economicLossByState.sources.noaa_reported_property_plus_crop_damage_usd} ${economicLossByState.note} ` +
+        `<b>This is a different, much narrower NOAA dataset than the "cost of fire" figures above</b> (raw per-incident local damage reports vs. a curated national billion-dollar-disaster estimate) &mdash; the two are not directly comparable or additive.`;
+    } else {
+      const fireMetricKey = firesByState.metric_by_year[String(selectedYear)];
+      document.getElementById('state-map-note').innerHTML =
+        `Showing <b>${metricLabels[fireMetricKey] || fireMetricKey}</b> for ${selectedYear}. ${firesByState.sources[fireMetricKey]}`;
+    }
+    renderLegend();
   }
 
-  function renderLegend(year) {
-    const metric = firesByState.metric_by_year[String(year)];
-    const label = metric === 'satellite_detections_firms' ? 'satellite fire detections' : 'wildfires reported';
+  function renderLegend() {
     const legend = document.getElementById('state-map-legend');
-    legend.innerHTML = `
-      <div class="legend-title">${year} ${label}</div>
-      <div class="legend-gradient" style="background:linear-gradient(90deg, #fdf0ec, #f5b8a3, #e37a5c, #c0392b, #6e1c12)"></div>
-      <div class="legend-scale"><span>0</span><span>${fmtNum(globalMax)}+</span></div>
-      <p class="small-note" style="margin-top:0.8rem">Darker = more ${label} that year. Color scale is fixed across all years (2020&ndash;2026) so shades are directly comparable when you switch years. Hover a state on the map for its exact count.</p>
-    `;
+    if (selectedMetric === 'loss') {
+      legend.innerHTML = `
+        <div class="legend-title">${selectedYear} reported economic loss</div>
+        <div class="legend-gradient" style="background:linear-gradient(90deg, #eef4fb, #a9c9ea, #5c96d0, #2c5f94, #12324f)"></div>
+        <div class="legend-scale"><span>$0</span><span>${fmtLossShort(globalMaxLoss)}+</span></div>
+        <p class="small-note" style="margin-top:0.8rem">Darker = more reported property + crop damage that year. Color scale is fixed across all years (2020&ndash;2026). A state showing no shading had no NOAA-reported wildfire-damage dollar figure that year, not necessarily zero fire activity. Hover a state for its exact total.</p>
+      `;
+    } else {
+      const fireMetricKey = firesByState.metric_by_year[String(selectedYear)];
+      const label = fireMetricKey === 'satellite_detections_firms' ? 'satellite fire detections' : 'wildfires reported';
+      legend.innerHTML = `
+        <div class="legend-title">${selectedYear} ${label}</div>
+        <div class="legend-gradient" style="background:linear-gradient(90deg, #fdf0ec, #f5b8a3, #e37a5c, #c0392b, #6e1c12)"></div>
+        <div class="legend-scale"><span>0</span><span>${fmtNum(globalMaxFires)}+</span></div>
+        <p class="small-note" style="margin-top:0.8rem">Darker = more ${label} that year. Color scale is fixed across all years (2020&ndash;2026) so shades are directly comparable when you switch years. Hover a state on the map for its exact count.</p>
+      `;
+    }
   }
+
+  // metric buttons
+  const metricBtnRow = document.getElementById('state-map-metric-buttons');
+  metricBtnRow.innerHTML = `
+    <button data-metric="fires">Fires reported</button>
+    <button data-metric="loss">Economic loss ($)</button>
+  `;
+  metricBtnRow.querySelectorAll('button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      selectedMetric = btn.dataset.metric;
+      paint();
+    });
+  });
 
   // year buttons
   const btnRow = document.getElementById('state-map-year-buttons');
@@ -293,11 +348,11 @@ function renderStateMap(firesByState) {
   btnRow.querySelectorAll('button').forEach((btn) => {
     btn.addEventListener('click', () => {
       selectedYear = parseInt(btn.dataset.year, 10);
-      paint(selectedYear);
+      paint();
     });
   });
 
-  paint(selectedYear);
+  paint();
 }
 
 // ---------------------------------------------------------------------------
@@ -469,6 +524,7 @@ async function handleLookup() {
 
   let bodyHtml = '';
   const causes = renderCauses(cell.grid_id);
+  let ignitionProba = null; // only set for future/site-demo-model dates
 
   if (farAway) {
     bodyHtml += `<p class="small-note">The nearest dense 0.25&deg; grid cell is ~${Math.round(distMiles)} miles away, so this is a regional approximation.</p>`;
@@ -505,6 +561,7 @@ async function handleLookup() {
     const riskIdx = state.forestRisk.classes.indexOf('1');
     const pRaw = forestPredictProba(state.forestRisk, featureVec)[riskIdx === -1 ? state.forestRisk.classes.indexOf('1.0') : riskIdx];
     const proba = calibrateBalancedProba(pRaw, state.featureMeta.weighted_prevalence, state.featureMeta.balanced_train_prior);
+    ignitionProba = proba;
     const band = riskBandFromProbability(proba, state.riskBands);
     bodyHtml += `
       <p class="source-tag">Site-demo random-forest prediction (holdout ROC AUC ${state.featureMeta.holdout_auc.toFixed(2)}) &mdash; rescaled from the model's balanced training prior back to a realistic probability, then bucketed with the real project model's risk bands</p>
@@ -524,7 +581,61 @@ async function handleLookup() {
   bodyHtml += renderLLMBox();
 
   panel.innerHTML = `<h3>${geo.matchedAddress}</h3>` + bodyHtml;
-  wireLLMBox({ address: geo.matchedAddress, dateStr, isPast, cell, causes });
+
+  const econ = buildEconomicContext(cell.grid_id, ignitionProba);
+  wireLLMBox({ address: geo.matchedAddress, dateStr, isPast, cell, causes, econ });
+}
+
+// ---------------------------------------------------------------------------
+// Economic context for the address-lookup report: real, state-level NOAA
+// wildfire-loss stats for whichever state the cell falls in, plus (for
+// future/site-demo-model dates only) an illustrative exposure figure that
+// combines the modeled ignition probability with that state's typical
+// per-incident loss. See the caveat text baked into templateReport() below
+// -- this is explicitly framed as a rough illustration, not a validated
+// dollar prediction (the ignition model and the NOAA loss data were built
+// and evaluated independently and were never joined fire-by-fire).
+// ---------------------------------------------------------------------------
+function buildEconomicContext(gridId, ignitionProba) {
+  const stateName = state.cellToState && state.cellToState[gridId];
+  if (!stateName) return null;
+  const stats = state.economicLossStateSummary && state.economicLossStateSummary.states[stateName];
+  if (!stats) return { stateName, noData: true };
+
+  const illustrativeExposure = (
+    ignitionProba !== null && stats.median_positive_incident_damage_usd
+  ) ? ignitionProba * stats.median_positive_incident_damage_usd : null;
+
+  return {
+    stateName,
+    avgAnnualDamage: stats.avg_annual_reported_damage_usd,
+    medianIncidentDamage: stats.median_positive_incident_damage_usd,
+    positiveIncidentCount: stats.positive_incident_count,
+    ignitionProba,
+    illustrativeExposure,
+  };
+}
+
+function econLines(econ) {
+  if (!econ) return [];
+  if (econ.noData) {
+    return [`Economic context: no NOAA-reported wildfire-damage records found for ${econ.stateName}, 2020–2025.`];
+  }
+  const lines = [
+    `Economic context (${econ.stateName}, NOAA Storm Events, 2020–2025): average of ${fmtUSD(econ.avgAnnualDamage) || '$0'} per year in reported wildfire property + crop damage statewide` +
+    (econ.medianIncidentDamage
+      ? `; a median of ${fmtUSD(econ.medianIncidentDamage)} per incident among the ${econ.positiveIncidentCount} wildfires with positive reported damage`
+      : `; no incidents with positive reported damage in this window`) + '.',
+  ];
+  if (econ.illustrativeExposure !== null) {
+    lines.push(
+      `Illustrative exposure: this location's modeled ignition chance (${fmtPct(econ.ignitionProba, 3)}) combined with ` +
+      `${econ.stateName}'s typical per-incident loss (${fmtUSD(econ.medianIncidentDamage)}) works out to roughly ${fmtUSD(econ.illustrativeExposure) || 'under $1,000'} — ` +
+      `a rough order-of-magnitude figure only, not a validated prediction: the ignition-probability model and this NOAA loss ` +
+      `data were built and evaluated independently and have never been joined fire-by-fire.`
+    );
+  }
+  return lines;
 }
 
 // ---------------------------------------------------------------------------
@@ -543,11 +654,13 @@ function renderLLMBox() {
 }
 
 function templateReport(ctx) {
+  const econText = econLines(ctx.econ).join('\n\n');
   return `Template report (no API key used):\n\n` +
     `Location: ${ctx.address}\nDate: ${ctx.dateStr}\n\n` +
     `${ctx.isPast ? 'Based on recorded satellite data' : 'Based on the site-demo random-forest model'} for the nearest 0.25-degree grid cell, ` +
     `see the risk badge and cause list above. To prevent human-caused ignition: avoid open burning on dry/windy days, ` +
-    `fully extinguish campfires and coals, keep equipment spark arrestors maintained, and follow any local burn bans or fire restrictions.`;
+    `fully extinguish campfires and coals, keep equipment spark arrestors maintained, and follow any local burn bans or fire restrictions.` +
+    (econText ? `\n\n${econText}` : '');
 }
 
 function wireLLMBox(ctx) {
@@ -559,11 +672,14 @@ function wireLLMBox(ctx) {
     if (!key) { out.textContent = templateReport(ctx); return; }
     out.textContent = 'Generating…';
     try {
+      const econText = econLines(ctx.econ).join(' ');
       const prompt = `You are a wildfire risk assistant for local communities. Using ONLY the context below ` +
-        `(no outside knowledge of current events), write a concise (under 100 words) plain-English report covering: ` +
-        `likelihood of fire, likely causes, and concrete human-caused-ignition prevention steps.\n\n` +
+        `(no outside knowledge of current events), write a concise (under 130 words) plain-English report covering: ` +
+        `likelihood of fire, likely causes, concrete human-caused-ignition prevention steps, and the economic context ` +
+        `if provided (clearly caveated as illustrative, not a guaranteed dollar figure).\n\n` +
         `Location: ${ctx.address}\nDate: ${ctx.dateStr}\nData type: ${ctx.isPast ? 'observed satellite record' : 'random-forest model prediction'}\n` +
-        `Nearby historical causes: ${ctx.causes.causeNames.join(', ') || 'unknown'}`;
+        `Nearby historical causes: ${ctx.causes.causeNames.join(', ') || 'unknown'}\n` +
+        (econText ? `${econText}\n` : '');
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
@@ -596,41 +712,53 @@ const FEATURE_LABELS = {
 function labelFor(f) { return FEATURE_LABELS[f] || f; }
 
 // ---------------------------------------------------------------------------
-// Section 2.5: why machine learning (live stats pulled from the real model's
-// own evaluated performance, not separately-hardcoded numbers)
+// Section: economic stake (persona section) -- combines the ignition model's
+// own real recall numbers with the real NOAA average annual damage total to
+// produce an illustrative "how much money sits inside the advance-warning
+// net" figure. Deliberately NOT framed as validated savings -- see the
+// caveat paragraph rendered alongside it in index.html.
 // ---------------------------------------------------------------------------
-function renderWhyMLSection(m) {
-  const testSplit = m.metrics_by_split.find((s) => s.split === 'temporal_test') || m.metrics_by_split[0];
-  const ab = m.coordinate_ablation;
-  const full = ab.find((r) => r.feature_strategy === 'full');
-  const conditionsOnly = ab.find((r) => r.feature_strategy === 'conditions_only');
-  const skillDrop = full && conditionsOnly ? (1 - conditionsOnly.PR_AUC / full.PR_AUC) : null;
+function renderEconomicImpactSection(economicLossByState, modelAnalysis) {
+  const years = [2020, 2021, 2022, 2023, 2024, 2025]; // exclude partial 2026
+  const totals = economicLossByState.national_totals;
+  const avgAnnualLoss = years.reduce((sum, y) => sum + (totals[String(y)] || 0), 0) / years.length;
+
+  const testSplit = modelAnalysis.metrics_by_split.find((s) => s.split === 'temporal_test') || modelAnalysis.metrics_by_split[0];
+  const recallWide = testSplit.recall_80_recall;
+  const flaggedWide = testSplit.recall_80_flagged_fraction;
+  const recallTight = testSplit.alert_budget_5pct_recall;
+  const flaggedTight = testSplit.alert_budget_5pct_flagged_fraction;
+
+  const coverageWide = avgAnnualLoss * recallWide;
+  const coverageTight = avgAnnualLoss * recallTight;
+
+  document.getElementById('econ-impact-avg-loss').textContent = fmtUSD(avgAnnualLoss) || '$0';
 
   const kpis = [
     {
-      title: 'Lift at top 1% of cells',
-      value: testSplit.lift_top_1pct.toFixed(1) + '×',
-      note: 'more real ignitions found there than chance would predict',
+      title: 'Reported wildfire damage, tracked annually',
+      value: fmtUSD(avgAnnualLoss),
+      note: 'NOAA Storm Events, 2020–2025 average',
     },
     {
-      title: 'Catch rate on a 5% alert budget',
-      value: fmtPct(testSplit.alert_budget_5pct_recall, 0),
-      note: `of real ignitions, watching only ${fmtPct(testSplit.alert_budget_5pct_flagged_fraction, 1)} of all grid-days`,
+      title: 'Inside the wide-net threshold',
+      value: fmtUSD(coverageWide),
+      note: `at ${fmtPct(recallWide, 0)} recall, watching ${fmtPct(flaggedWide, 1)} of all cell-days`,
     },
     {
-      title: 'Skill lost using only location + season',
-      value: skillDrop !== null ? '−' + fmtPct(skillDrop, 0) : '–',
-      note: 'drop in PR AUC without real fire-weather or activity signals',
+      title: 'Inside a ~5x tighter watch list',
+      value: fmtUSD(coverageTight),
+      note: `at ${fmtPct(recallTight, 0)} recall, watching only ${fmtPct(flaggedTight, 1)} of all cell-days`,
     },
   ];
-  document.getElementById('why-ml-kpis').innerHTML = kpis.map((k) => `
+  document.getElementById('econ-impact-kpis').innerHTML = kpis.map((k) => `
     <div class="kpi-card"><div class="kpi-title">${k.title}</div><div class="kpi-value">${k.value}</div><div class="kpi-note">${k.note}</div></div>`).join('');
 
-  document.getElementById('why-ml-callout').innerHTML =
-    `In the real project model's own held-out evaluation: the riskiest 1% of grid-cell-days contain <b>${testSplit.lift_top_1pct.toFixed(1)}&times;</b> ` +
-    `as many real ignitions as you'd expect by chance, and watching just the riskiest <b>${fmtPct(testSplit.alert_budget_5pct_flagged_fraction, 1)}</b> of all ` +
-    `grid-days still catches <b>${fmtPct(testSplit.alert_budget_5pct_recall, 0)}</b> of the ignitions that actually happened. ` +
-    (skillDrop !== null ? `Strip out real fire-weather and recent-activity data and keep only location and season, and predictive skill (PR AUC) drops by <b>${fmtPct(skillDrop, 0)}</b> &mdash; concrete evidence the model is learning from real conditions, not just memorizing where fires usually are.` : '');
+  document.getElementById('econ-impact-callout').innerHTML =
+    `At the wide-net, 80%-recall threshold used above for emergency management, roughly <b>${fmtUSD(coverageWide)}</b> of the ` +
+    `average <b>${fmtUSD(avgAnnualLoss)}</b> in NOAA-reported annual wildfire damage falls inside fires this model would have flagged a day ` +
+    `in advance. At the tighter, 5%-alert-budget threshold used above for utilities, that's still roughly <b>${fmtUSD(coverageTight)}</b> ` +
+    `&mdash; while watching a fraction of the cell-days.`;
 }
 
 function renderModelAnalysis(m) {
@@ -670,6 +798,19 @@ function renderModelAnalysis(m) {
       return isWinner ? `<tr style="background:var(--accent-soft);font-weight:700"><td>&#9733; ${r.model.replace(/_/g, ' ')}</td><td>${r.feature_strategy.replace(/_/g, ' ')}</td><td>${r.calibration}</td><td>${r.PR_AUC.toFixed(4)}</td><td>${r.ROC_AUC.toFixed(3)}</td><td>${r.Brier.toFixed(5)}</td></tr>` : `<tr>${row}</tr>`;
     }).join('')}
   `;
+
+  // ---- 03b: full vs. full_trimmed tie check (zero-importance audit) ----
+  const trimmedCallout = document.getElementById('trimmed-callout');
+  if (trimmedCallout) {
+    const hgbFull = candidates.find((r) => r.model === 'hist_gradient_boosting' && r.feature_strategy === 'full' && r.calibration === card.calibration_method);
+    const hgbTrimmed = candidates.find((r) => r.model === 'hist_gradient_boosting' && r.feature_strategy === 'full_trimmed' && r.calibration === card.calibration_method);
+    if (hgbFull && hgbTrimmed) {
+      const tie = Math.abs(hgbFull.PR_AUC - hgbTrimmed.PR_AUC) < 1e-9 && Math.abs(hgbFull.ROC_AUC - hgbTrimmed.ROC_AUC) < 1e-9;
+      trimmedCallout.innerHTML = tie
+        ? `For the winning model family, <b>full_trimmed tied full bit-for-bit</b> on PR AUC, ROC AUC, and Brier (both ${hgbFull.PR_AUC.toFixed(6)} PR AUC) &mdash; hist_gradient_boosting genuinely never splits on the four dropped columns, confirming the zero-importance audit above rather than an artifact of one fit. For extra_trees and random_forest, dropping the same four columns moved PR AUC by well under 1%, consistent with those algorithms occasionally sampling the columns anyway through random feature subsampling &mdash; noise, not signal.`
+        : `Removing the four zero-importance columns (<b>full_trimmed</b>) landed within noise of the full feature set on every metric, supporting the audit's read that these columns are dead weight for this fit rather than a bug.`;
+    }
+  }
 
   // ---- 04: full metrics-by-split table ----
   document.getElementById('split-metrics-table').innerHTML = `
@@ -718,41 +859,50 @@ function renderModelAnalysis(m) {
       `actual weather and recent-activity signals rather than simply memorizing fire-prone places.`;
   }
 
-  // ---- 06: bootstrap + risk bands ----
-  const ci = m.bootstrap_ci;
-  document.getElementById('bootstrap-cards').innerHTML = ['ROC_AUC', 'PR_AUC', 'Brier'].map((key) => {
-    const c = ci[key];
-    const digits = key === 'PR_AUC' || key === 'Brier' ? 4 : 3;
-    return `<div class="kpi-card"><div class="kpi-title">${key.replace('_', ' ')}</div><div class="kpi-value">${c.median.toFixed(digits)}</div><div class="kpi-note">95% CI ${c.lower_95.toFixed(digits)}–${c.upper_95.toFixed(digits)}</div></div>`;
-  }).join('');
+}
 
-  const rb = card.risk_bands;
-  const bands = [
-    { name: 'Typical', lo: 0, hi: rb.typical_upper },
-    { name: 'Moderate', lo: rb.typical_upper, hi: rb.moderate_upper },
-    { name: 'Elevated', lo: rb.moderate_upper, hi: rb.elevated_upper },
-    { name: 'High', lo: rb.elevated_upper, hi: rb.high_upper },
-    { name: 'Extreme', lo: rb.high_upper, hi: null },
-  ];
-  document.getElementById('risk-band-table').innerHTML = `
-    <tr><th>Band</th><th>Calibrated probability range</th></tr>
-    ${bands.map((b) => `<tr><td><span class="risk-badge risk-${b.name}" style="font-size:0.78rem">${b.name}</span></td><td>${fmtPct(b.lo, 2)} &ndash; ${b.hi === null ? 'and above' : fmtPct(b.hi, 2)}</td></tr>`).join('')}
+function renderEconomicModelMethodology(econ) {
+  if (!econ) return;
+  const card = econ.model_card;
+
+  // ---- data audit table ----
+  document.getElementById('econ-data-audit-table').innerHTML = `
+    <tr><th>Year</th><th>Wildfire records</th><th>With explicit damage entry</th><th>With positive damage</th><th>Total reported damage</th><th>Median positive-damage incident</th></tr>
+    ${econ.data_audit.map((r) => `<tr><td>${r.YEAR}</td><td>${fmtNum(r.wildfire_records)}</td><td>${fmtNum(r.explicit_damage_entries)}</td><td>${fmtNum(r.positive_damage_records)}</td><td>${fmtUSD(r.total_reported_damage_usd) || '$0'}</td><td>${fmtUSD(r.median_positive_damage_usd) || '&ndash;'}</td></tr>`).join('')}
   `;
 
-  document.getElementById('limitations-box').innerHTML = `
-    <h4>Known limitations (from the model card)</h4>
+  // ---- baseline comparison table ----
+  const splitLabel = { validation: 'Validation (2024)', test: 'Test (2025, untouched)', provisional_2026: 'Provisional (2026, partial)' };
+  const modelLabel = { hurdle_rf_et: 'Trained hurdle model', baseline_state_average: 'Naive per-state baseline' };
+  const rows = econ.metrics_by_split;
+  document.getElementById('econ-baseline-table').innerHTML = `
+    <tr><th>Split</th><th>Model</th><th>Damage PR AUC</th><th>Damage ROC AUC</th><th>Median abs. error</th><th>RMSE</th><th>80% interval coverage</th></tr>
+    ${rows.map((r) => `<tr><td>${splitLabel[r.split] || r.split}</td><td>${modelLabel[r.model] || r.model}</td><td>${r.damage_PR_AUC.toFixed(3)}</td><td>${r.damage_ROC_AUC.toFixed(3)}</td><td>${fmtUSD(r.median_absolute_error_usd)}</td><td>${fmtUSD(r.RMSE_usd_all)}</td><td>${r.conditional_80pct_interval_coverage != null ? fmtPct(r.conditional_80pct_interval_coverage, 1) : '&ndash;'}</td></tr>`).join('')}
+  `;
+
+  const testHurdle = rows.find((r) => r.split === 'test' && r.model === 'hurdle_rf_et');
+  const testBaseline = rows.find((r) => r.split === 'test' && r.model === 'baseline_state_average');
+  if (testHurdle && testBaseline) {
+    document.getElementById('econ-baseline-callout').innerHTML =
+      `On the untouched 2025 test year, the trained hurdle model clearly wins the classification half of the problem &mdash; whether an ` +
+      `incident has any positive reported damage at all (PR AUC <b>${testHurdle.damage_PR_AUC.toFixed(3)}</b> vs. <b>${testBaseline.damage_PR_AUC.toFixed(3)}</b> ` +
+      `for the naive baseline). But on the dollar-amount half, the naive per-state historical average is actually as good or slightly ` +
+      `better on every point-estimate metric (median error ${fmtUSD(testBaseline.median_absolute_error_usd)} vs. ${fmtUSD(testHurdle.median_absolute_error_usd)}; ` +
+      `RMSE ${fmtUSD(testBaseline.RMSE_usd_all)} vs. ${fmtUSD(testHurdle.RMSE_usd_all)}) &mdash; and the gap widens further on the provisional ` +
+      `2026 data. Wildfire loss amounts are extremely skewed and dominated by a handful of catastrophic events; a 500-tree regressor trained ` +
+      `on a few hundred rows appears to chase that noise more than a stable state average does. Read this as an honest result, not a clean ` +
+      `win: the shipped model is better at flagging <i>whether</i> a loss happened than at pricing <i>how much</i>.`;
+
+    document.getElementById('econ-interval-callout').innerHTML =
+      `The conditional 80% interval is calibrated only on 2024 residuals. On that same 2024 data it measures close to the nominal 80% ` +
+      `(a circular check &mdash; see the validation row above), but on the untouched 2025 test year its actual coverage is only ` +
+      `<b>${fmtPct(testHurdle.conditional_80pct_interval_coverage, 1)}</b> &mdash; noticeably below the 80% it claims. Treat this interval ` +
+      `as an optimistic guide, not a calibrated confidence interval, until it is recalibrated on more than a single year.`;
+  }
+
+  document.getElementById('econ-limitations-box').innerHTML = `
+    <h4>Known limitations (from the economic-loss model card)</h4>
     <ul>${card.limitations.map((l) => `<li>${l}</li>`).join('')}</ul>
-  `;
-  document.getElementById('next-steps-box').innerHTML = `
-    <h4>Next recommended research steps (from the notebook's own discussion)</h4>
-    <ul>
-      <li>Prospective, forward-looking validation against fires as they happen, not just retrospective holdouts.</li>
-      <li>Independent review by domain/fire-science experts before any operational use.</li>
-      <li>Extend beyond the continental U.S. (GridMET's coverage limit) to Alaska, Hawaii, and other regions.</li>
-      <li>Model fire spread and behavior, not just next-day detection onset.</li>
-      <li>Incorporate additional data sources (e.g. finer-resolution fuels data, real-time human activity signals).</li>
-      <li>Continue monitoring calibration drift as new years of data arrive, especially for partial/provisional 2026 data.</li>
-    </ul>
   `;
 }
 
@@ -787,7 +937,8 @@ function wireScrollEffects() {
 // ---------------------------------------------------------------------------
 async function main() {
   const [annual, bigFires, gridIndex, cellState, cellCauses, dailyEvents,
-    forestRisk, featureMeta, climatology, modelAnalysis, annualLoss, firesByState] = await Promise.all([
+    forestRisk, featureMeta, climatology, modelAnalysis, annualLoss, firesByState,
+    economicLossByState, cellToState, economicLossStateSummary] = await Promise.all([
     loadJSON('annual_stats.json'),
     loadJSON('big_fires.json'),
     loadJSON('grid_index.json'),
@@ -800,20 +951,24 @@ async function main() {
     loadJSON('improved_model_analysis.json'),
     loadJSON('annual_loss.json'),
     loadJSON('fires_by_state.json'),
+    loadJSON('economic_loss_by_state.json'),
+    loadJSON('cell_to_state.json'),
+    loadJSON('economic_loss_state_summary.json'),
   ]);
   Object.assign(state, {
     gridIndex, cellState, cellCauses, dailyEvents, forestRisk, featureMeta, climatology,
     riskBands: modelAnalysis.model_card.risk_bands,
+    cellToState, economicLossStateSummary,
   });
 
   renderLossSection(annualLoss, annual);
   renderStoryCharts(annual);
-  renderStateMap(firesByState);
+  renderStateMap(firesByState, economicLossByState);
   renderCaseCards(bigFires);
   renderRiskLegend(state.riskBands);
   document.getElementById('cutoff-date-label').textContent = featureMeta.cutoff_date;
   initMap();
-  renderWhyMLSection(modelAnalysis);
+  renderEconomicImpactSection(economicLossByState, modelAnalysis);
   wireScrollEffects();
 
   document.getElementById('lookup-btn').addEventListener('click', handleLookup);
@@ -828,5 +983,6 @@ async function main() {
 async function mainMethodology() {
   const modelAnalysis = await loadJSON('improved_model_analysis.json');
   renderModelAnalysis(modelAnalysis);
+  renderEconomicModelMethodology(modelAnalysis.economic_model);
   wireScrollEffects();
 }

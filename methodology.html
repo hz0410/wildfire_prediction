@@ -111,6 +111,29 @@
       </div>
     </div>
 
+    <h3 style="text-align:center;margin-top:2rem">Does the model actually use every feature it's given?</h3>
+    <p class="center sub" style="max-width:760px">
+      A reviewer's critique of an earlier draft raised a concern common to
+      raster/CNN wildfire-spread models: don't let the target or features
+      hand the model a trivial shortcut instead of real fire-weather physics.
+      This model has no image-mask component to concatenate, so that exact
+      failure mode doesn't apply &mdash; but the underlying question is worth
+      answering directly. The selected model's own permutation-importance
+      table (Section&nbsp;05 below) shows four features
+      (<code>fire_count_lag_1d</code>, <code>frp_lag_1d</code>,
+      <code>frp_lag_3d</code>, <code>log_population_density</code>) score
+      <b>exactly 0.000000</b> importance. This isn't a leakage bug &mdash;
+      the decision day is always one day before the target day by
+      construction, so <code>fire_count_lag_1d</code> is deterministically 0
+      for every positive row (a structural side effect of the &gt;3-day quiet
+      window in the target's own definition), and
+      <code>log_population_density</code> is redundant with
+      <code>population_per_sq_km</code>. To check this empirically rather
+      than take the permutation-importance table's word for it, a fourth
+      feature strategy, <code>full_trimmed</code> (21 features, these four
+      dropped), was added to the candidate comparison below.
+    </p>
+
     <h3 style="text-align:center;margin-top:2rem">How the model was validated</h3>
     <p class="center sub" style="max-width:760px">
       Rather than a random row-by-row split &mdash; which would let the model
@@ -126,21 +149,24 @@
   <!-- 03: models compared -->
   <section id="section-models" class="story-section-full reveal">
     <p class="kicker center">03 &middot; Models compared</p>
-    <h2 class="center">18 candidates, one winner</h2>
+    <h2 class="center">24 candidates, one winner</h2>
     <p class="center sub" style="max-width:760px">
       The notebook trains three model families &mdash; a gradient-boosted
       tree ensemble (<code>hist_gradient_boosting</code>), extremely
       randomized trees (<code>extra_trees</code>), and a random forest
-      (<code>random_forest</code>) &mdash; against each of the three feature
+      (<code>random_forest</code>) &mdash; against each of four feature
       strategies (<code>full</code>, <code>no_coordinates</code>,
-      <code>conditions_only</code>), each calibrated two ways (Platt/sigmoid
-      and isotonic regression), for 18 total candidates. Every candidate is
-      ranked by <b>PR AUC</b> (precision-recall area under the curve) on the
-      calibration split &mdash; the right metric here, since ROC AUC is easy
-      to inflate when positives are this rare.
+      <code>conditions_only</code>, and <code>full_trimmed</code> &mdash; a
+      leaner 21-feature variant testing the zero-importance audit above),
+      each calibrated two ways (Platt/sigmoid and isotonic regression), for
+      24 total candidates. Every candidate is ranked by <b>PR AUC</b>
+      (precision-recall area under the curve) on the calibration split
+      &mdash; the right metric here, since ROC AUC is easy to inflate when
+      positives are this rare.
     </p>
     <table class="ablation-table" id="candidate-table"></table>
-    <p class="callout" style="margin-top:1rem">
+    <p class="callout" id="trimmed-callout" style="margin-top:1rem"></p>
+    <p class="callout" style="margin-top:0.6rem">
       The winner &mdash; <b>hist_gradient_boosting</b>, full feature set,
       sigmoid calibration &mdash; is only marginally ahead of the next few
       candidates. What matters more than the exact ranking is that gradient
@@ -178,6 +204,43 @@
       riskiest 5% of cell-days, whatever recall that buys you).
     </p>
     <table class="ablation-table" id="threshold-table"></table>
+
+    <h3 style="text-align:center;margin-top:2rem">From ML metrics to operational cost</h3>
+    <p class="center sub" style="max-width:760px">
+      ROC AUC and PR AUC are useful for comparing candidates, but they mean
+      little to an incident commander or a portfolio underwriter, and a
+      single blended score like F1 quietly assumes a missed ignition and a
+      false alarm cost the same &mdash; they don't. A missed ignition (a
+      false negative) risks uncontained spread, property loss, and life
+      safety. A false alarm (a false positive) risks an unnecessary patrol,
+      inspection, or a premature precautionary action. That asymmetry, not a
+      single accuracy number, is why this model ships two named operating
+      points instead of one.
+    </p>
+    <table class="ablation-table">
+      <tr><th>Operating point</th><th>Cost of a missed ignition</th><th>Cost of a false alarm</th><th>Best suited for</th></tr>
+      <tr>
+        <td><b>Recall-80 target</b><br /><span class="small-note">catches ~81% of real ignitions, but flags ~26% of all monitored cell-days</span></td>
+        <td><b>High</b> &mdash; life safety, uncontained spread, property loss if a real ignition goes unwatched</td>
+        <td>Low/moderate &mdash; an extra patrol or inspection on a cell that stays quiet</td>
+        <td>Emergency management &amp; incident command, where under-reacting is the expensive mistake</td>
+      </tr>
+      <tr>
+        <td><b>5%-alert-budget target</b><br /><span class="small-note">catches ~42% of real ignitions, false-alarm rate held near ~5%</span></td>
+        <td>Moderate &mdash; a real ignition in an unflagged cell is missed by this narrower net</td>
+        <td><b>High</b> &mdash; each flagged cell can trigger a real cost (a targeted power shutoff, an underwriting flag)</td>
+        <td>Utilities and other resource-constrained operators, where over-reacting is the expensive mistake</td>
+      </tr>
+    </table>
+    <p class="callout" style="margin-top:1rem">
+      Neither threshold is "more correct" in an ML sense &mdash; both come from
+      the exact same calibrated probability. Which one to operate on is a
+      business decision about which kind of error is more expensive for a
+      given user, not a modeling decision. See the
+      <a href="index.html#section-personas">persona breakdown on the prediction-model page</a>
+      for how emergency management, utilities, insurance, and residents each
+      map to a different point on this tradeoff.
+    </p>
   </section>
 
   <!-- 05: explainability -->
@@ -228,29 +291,67 @@
     <p class="callout" id="ablation-callout" style="margin-top:1rem"></p>
   </section>
 
-  <!-- 06: uncertainty + risk bands -->
-  <section id="section-uncertainty" class="story-section-full reveal">
-    <p class="kicker center">06 &middot; Uncertainty & risk bands</p>
-    <h2 class="center">Held-out performance, with uncertainty</h2>
-    <p class="center sub">Bootstrap 95% confidence intervals from resampling whole calendar dates, not individual rows &mdash; a stricter, more honest uncertainty estimate, computed on the temporal_test split.</p>
-    <div class="kpi-grid" id="bootstrap-cards"></div>
-
-    <h3 style="text-align:center;margin-top:2rem">From probability to risk band</h3>
+  <!-- 06: economic-loss model -->
+  <section id="section-economic-model" class="story-section-full reveal">
+    <p class="kicker center">06 &middot; Estimating economic loss</p>
+    <h2 class="center">A separate model: what could a wildfire cost, if it causes reported damage at all?</h2>
+    <span class="data-tag real center" style="display:block;width:fit-content;margin:0 auto 0.8rem">Real project results</span>
     <p class="center sub" style="max-width:760px">
-      The calibrated probability is finally binned into five discrete risk
-      bands using quantiles of the 2024 calibration-year probability
-      distribution &mdash; the same bands used for the address-lookup map on
-      the prediction-model page.
+      This is a deliberately <b>separate consequence model</b>, not a
+      redefinition of the ignition target above. It uses NOAA/NCEI Storm
+      Events bulk data for U.S. wildfire incidents, 2020&ndash;2026 &mdash;
+      the same source behind the economic-loss map and address-lookup
+      context on the <a href="index.html">prediction-model page</a>. NOAA's
+      damage figures are estimates, and a recorded zero can mean either "no
+      monetary damage" or "damage never quantified," so the model uses a
+      two-part <b>hurdle design</b>: (1) the probability an incident has any
+      positive reported damage, times (2) the conditional loss amount when
+      damage is reported. The result excludes indirect costs, smoke-related
+      health costs, ecosystem services, business interruption, suppression
+      costs, and unreported losses &mdash; it is a rough planning estimate,
+      not an insurance valuation.
     </p>
-    <table class="ablation-table" id="risk-band-table"></table>
-  </section>
 
-  <!-- 07: limitations -->
-  <section id="section-limitations" class="story-section-full reveal">
-    <p class="kicker center">07 &middot; Limitations & next steps</p>
-    <h2 class="center">What this model doesn't tell you</h2>
-    <div class="limitations-box" id="limitations-box"></div>
-    <div class="limitations-box" id="next-steps-box" style="margin-top:1.2rem"></div>
+    <h4 class="center" style="margin-top:1.6rem">NOAA wildfire damage records, by year</h4>
+    <table class="ablation-table" id="econ-data-audit-table"></table>
+
+    <h3 style="text-align:center;margin-top:2.4rem">Modeling choices</h3>
+    <p class="center sub" style="max-width:760px">
+      Only information plausibly known when an incident is first opened is
+      used: state/forecast zone, month, and a small year trend. Final
+      acreage, duration, fatalities, injuries, destroyed structures, and
+      narrative text are deliberately excluded &mdash; those describe
+      outcomes only known after the fact, and including them would leak the
+      very consequence the model is trying to estimate in advance.
+    </p>
+
+    <h3 style="text-align:center;margin-top:2.4rem">Does the extra complexity earn its keep?</h3>
+    <p class="center sub" style="max-width:760px">
+      Every split is also scored against <code>baseline_state_average</code>
+      &mdash; a trivial hurdle model that just predicts each training-year
+      state's historical average, with no weather, timing, or learned
+      structure at all. If the real model (<code>hurdle_rf_et</code>, two
+      500-tree ensembles) can't beat that, its added complexity isn't
+      earning its keep.
+    </p>
+    <table class="ablation-table" id="econ-baseline-table"></table>
+    <p class="callout" id="econ-baseline-callout" style="margin-top:1rem"></p>
+
+    <h3 style="text-align:center;margin-top:2.4rem">A metric that was fixed, and an interval that runs hot</h3>
+    <p class="center sub" style="max-width:760px">
+      An earlier version of this notebook combined predicted and observed
+      loss in log1p space across every row, including the roughly 55% of
+      rows with exactly $0 reported damage &mdash; since
+      <code>log1p(0)&nbsp;=&nbsp;0</code> but the model's blended point
+      estimate is never exactly zero, that metric was dominated by an
+      artifact on zero-damage rows rather than real predictive skill (it
+      reported values of 7&ndash;9, uninterpretable as a typical error). It
+      has been replaced with dollar-space <code>RMSE_usd_all</code>, shown
+      alongside <code>median_absolute_error_usd</code> above.
+    </p>
+    <p class="callout" id="econ-interval-callout" style="margin-top:0.6rem"></p>
+
+    <div class="limitations-box" id="econ-limitations-box" style="margin-top:1.2rem"></div>
   </section>
 
 </main>

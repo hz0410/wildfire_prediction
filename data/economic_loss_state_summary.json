@@ -1,0 +1,272 @@
+{
+ "years": [
+  2020,
+  2021,
+  2022,
+  2023,
+  2024,
+  2025
+ ],
+ "states": {
+  "Alaska": {
+   "avg_annual_reported_damage_usd": 0.0,
+   "median_positive_incident_damage_usd": null,
+   "positive_incident_count": 0,
+   "reported_incident_count": 21
+  },
+  "Arizona": {
+   "avg_annual_reported_damage_usd": 7340666.666666667,
+   "median_positive_incident_damage_usd": 500000.0,
+   "positive_incident_count": 21,
+   "reported_incident_count": 128
+  },
+  "Arkansas": {
+   "avg_annual_reported_damage_usd": 0.0,
+   "median_positive_incident_damage_usd": null,
+   "positive_incident_count": 0,
+   "reported_incident_count": 1
+  },
+  "California": {
+   "avg_annual_reported_damage_usd": 51502086.666666664,
+   "median_positive_incident_damage_usd": 100000.0,
+   "positive_incident_count": 55,
+   "reported_incident_count": 306
+  },
+  "Colorado": {
+   "avg_annual_reported_damage_usd": 424459333.3333333,
+   "median_positive_incident_damage_usd": 500000.0,
+   "positive_incident_count": 86,
+   "reported_incident_count": 187
+  },
+  "Florida": {
+   "avg_annual_reported_damage_usd": 16841166.666666668,
+   "median_positive_incident_damage_usd": 96000.0,
+   "positive_incident_count": 6,
+   "reported_incident_count": 40
+  },
+  "Georgia": {
+   "avg_annual_reported_damage_usd": 33333.333333333336,
+   "median_positive_incident_damage_usd": 200000.0,
+   "positive_incident_count": 1,
+   "reported_incident_count": 2
+  },
+  "Guam": {
+   "avg_annual_reported_damage_usd": 0.0,
+   "median_positive_incident_damage_usd": null,
+   "positive_incident_count": 0,
+   "reported_incident_count": 1
+  },
+  "Hawaii": {
+   "avg_annual_reported_damage_usd": 925977666.6666666,
+   "median_positive_incident_damage_usd": 27800000.0,
+   "positive_incident_count": 4,
+   "reported_incident_count": 28
+  },
+  "Idaho": {
+   "avg_annual_reported_damage_usd": 31695500.0,
+   "median_positive_incident_damage_usd": 850000.0,
+   "positive_incident_count": 48,
+   "reported_incident_count": 104
+  },
+  "Illinois": {
+   "avg_annual_reported_damage_usd": 64166.666666666664,
+   "median_positive_incident_damage_usd": 27500.0,
+   "positive_incident_count": 4,
+   "reported_incident_count": 7
+  },
+  "Indiana": {
+   "avg_annual_reported_damage_usd": 5833.333333333333,
+   "median_positive_incident_damage_usd": 10000.0,
+   "positive_incident_count": 3,
+   "reported_incident_count": 5
+  },
+  "Iowa": {
+   "avg_annual_reported_damage_usd": 61666.666666666664,
+   "median_positive_incident_damage_usd": 185000.0,
+   "positive_incident_count": 2,
+   "reported_incident_count": 3
+  },
+  "Kansas": {
+   "avg_annual_reported_damage_usd": 402666.6666666667,
+   "median_positive_incident_damage_usd": 175000.0,
+   "positive_incident_count": 6,
+   "reported_incident_count": 20
+  },
+  "Louisiana": {
+   "avg_annual_reported_damage_usd": 3819166.6666666665,
+   "median_positive_incident_damage_usd": 1000000.0,
+   "positive_incident_count": 5,
+   "reported_incident_count": 8
+  },
+  "Massachusetts": {
+   "avg_annual_reported_damage_usd": 12500.0,
+   "median_positive_incident_damage_usd": 75000.0,
+   "positive_incident_count": 1,
+   "reported_incident_count": 1
+  },
+  "Michigan": {
+   "avg_annual_reported_damage_usd": 368333.3333333333,
+   "median_positive_incident_damage_usd": 200000.0,
+   "positive_incident_count": 3,
+   "reported_incident_count": 5
+  },
+  "Minnesota": {
+   "avg_annual_reported_damage_usd": 3823333.3333333335,
+   "median_positive_incident_damage_usd": 8700000.0,
+   "positive_incident_count": 3,
+   "reported_incident_count": 8
+  },
+  "Mississippi": {
+   "avg_annual_reported_damage_usd": 5000.0,
+   "median_positive_incident_damage_usd": 15000.0,
+   "positive_incident_count": 2,
+   "reported_incident_count": 4
+  },
+  "Missouri": {
+   "avg_annual_reported_damage_usd": 2551166.6666666665,
+   "median_positive_incident_damage_usd": 150000.0,
+   "positive_incident_count": 6,
+   "reported_incident_count": 21
+  },
+  "Montana": {
+   "avg_annual_reported_damage_usd": 645000.0,
+   "median_positive_incident_damage_usd": 1935000.0,
+   "positive_incident_count": 2,
+   "reported_incident_count": 67
+  },
+  "Nebraska": {
+   "avg_annual_reported_damage_usd": 1904533.3333333333,
+   "median_positive_incident_damage_usd": 90000.0,
+   "positive_incident_count": 22,
+   "reported_incident_count": 29
+  },
+  "Nevada": {
+   "avg_annual_reported_damage_usd": 50000.0,
+   "median_positive_incident_damage_usd": 150000.0,
+   "positive_incident_count": 2,
+   "reported_incident_count": 5
+  },
+  "New Hampshire": {
+   "avg_annual_reported_damage_usd": 0.0,
+   "median_positive_incident_damage_usd": null,
+   "positive_incident_count": 0,
+   "reported_incident_count": 1
+  },
+  "New Jersey": {
+   "avg_annual_reported_damage_usd": 50000.0,
+   "median_positive_incident_damage_usd": 300000.0,
+   "positive_incident_count": 1,
+   "reported_incident_count": 3
+  },
+  "New Mexico": {
+   "avg_annual_reported_damage_usd": 34021666.666666664,
+   "median_positive_incident_damage_usd": 500000.0,
+   "positive_incident_count": 24,
+   "reported_incident_count": 52
+  },
+  "New York": {
+   "avg_annual_reported_damage_usd": 22666.666666666668,
+   "median_positive_incident_damage_usd": 68000.0,
+   "positive_incident_count": 2,
+   "reported_incident_count": 2
+  },
+  "North Carolina": {
+   "avg_annual_reported_damage_usd": 60666.666666666664,
+   "median_positive_incident_damage_usd": 364000.0,
+   "positive_incident_count": 1,
+   "reported_incident_count": 1
+  },
+  "North Dakota": {
+   "avg_annual_reported_damage_usd": 5333333.333333333,
+   "median_positive_incident_damage_usd": 16000000.0,
+   "positive_incident_count": 2,
+   "reported_incident_count": 2
+  },
+  "Oklahoma": {
+   "avg_annual_reported_damage_usd": 15150388.333333334,
+   "median_positive_incident_damage_usd": 100000.0,
+   "positive_incident_count": 63,
+   "reported_incident_count": 205
+  },
+  "Oregon": {
+   "avg_annual_reported_damage_usd": 2466666.6666666665,
+   "median_positive_incident_damage_usd": 2250000.0,
+   "positive_incident_count": 4,
+   "reported_incident_count": 168
+  },
+  "Pennsylvania": {
+   "avg_annual_reported_damage_usd": 650000.0,
+   "median_positive_incident_damage_usd": 1100000.0,
+   "positive_incident_count": 3,
+   "reported_incident_count": 8
+  },
+  "Puerto Rico": {
+   "avg_annual_reported_damage_usd": 86666.66666666667,
+   "median_positive_incident_damage_usd": 520000.0,
+   "positive_incident_count": 1,
+   "reported_incident_count": 1
+  },
+  "South Carolina": {
+   "avg_annual_reported_damage_usd": 1666.6666666666667,
+   "median_positive_incident_damage_usd": 10000.0,
+   "positive_incident_count": 1,
+   "reported_incident_count": 2
+  },
+  "South Dakota": {
+   "avg_annual_reported_damage_usd": 10833.333333333334,
+   "median_positive_incident_damage_usd": 32500.0,
+   "positive_incident_count": 2,
+   "reported_incident_count": 12
+  },
+  "Tennessee": {
+   "avg_annual_reported_damage_usd": 416666.6666666667,
+   "median_positive_incident_damage_usd": 1250000.0,
+   "positive_incident_count": 2,
+   "reported_incident_count": 2
+  },
+  "Texas": {
+   "avg_annual_reported_damage_usd": 54750916.666666664,
+   "median_positive_incident_damage_usd": 250000.0,
+   "positive_incident_count": 34,
+   "reported_incident_count": 232
+  },
+  "Utah": {
+   "avg_annual_reported_damage_usd": 11855000.0,
+   "median_positive_incident_damage_usd": 1000000.0,
+   "positive_incident_count": 13,
+   "reported_incident_count": 22
+  },
+  "Virginia": {
+   "avg_annual_reported_damage_usd": 259000.0,
+   "median_positive_incident_damage_usd": 559000.0,
+   "positive_incident_count": 3,
+   "reported_incident_count": 4
+  },
+  "Washington": {
+   "avg_annual_reported_damage_usd": 273789941.6666667,
+   "median_positive_incident_damage_usd": 2000000.0,
+   "positive_incident_count": 119,
+   "reported_incident_count": 148
+  },
+  "West Virginia": {
+   "avg_annual_reported_damage_usd": 0.0,
+   "median_positive_incident_damage_usd": null,
+   "positive_incident_count": 0,
+   "reported_incident_count": 0
+  },
+  "Wisconsin": {
+   "avg_annual_reported_damage_usd": 15500.0,
+   "median_positive_incident_damage_usd": 15000.0,
+   "positive_incident_count": 4,
+   "reported_incident_count": 9
+  },
+  "Wyoming": {
+   "avg_annual_reported_damage_usd": 4541666.666666667,
+   "median_positive_incident_damage_usd": 7250000.0,
+   "positive_incident_count": 4,
+   "reported_incident_count": 24
+  }
+ },
+ "note": "median_positive_incident_damage_usd is the median NOAA-reported property+crop damage among that state's wildfire records with positive reported damage, 2020-2025 pooled (per-state-year counts are too small individually to report a stable median). null means the state had zero NOAA-reported positive-damage wildfire records in this window, not that no damage occurred.",
+ "source": "NOAA/NCEI Storm Events Database, EVENT_TYPE='Wildfire', 2020-2025."
+}
